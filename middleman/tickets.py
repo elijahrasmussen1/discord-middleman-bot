@@ -1,0 +1,342 @@
+import discord
+from discord.ext import commands
+from discord.ui import Button, View
+from discord import app_commands
+import asyncio
+import os
+import re
+
+class TicketButton(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+    
+    @discord.ui.button(label='Request MM', style=discord.ButtonStyle.primary, custom_id='request_mm_button')
+    async def request_mm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Handle ticket creation when button is clicked"""
+        await interaction.response.defer(ephemeral=True)
+        
+        guild = interaction.guild
+        user = interaction.user
+        
+        # Check if user has MM ban role
+        mm_ban_role_id = int(os.getenv('MM_BAN_ROLE_ID', '1446370352757342279'))
+        mm_ban_role = guild.get_role(mm_ban_role_id)
+        
+        if mm_ban_role and mm_ban_role in user.roles:
+            await interaction.followup.send(
+                'You are currently banned from using middleman services. '
+                'Please contact an administrator if you believe this is an error.',
+                ephemeral=True
+            )
+            return
+        
+        # Get the ticket category from environment or use default
+        try:
+            ticket_category_id = int(os.getenv('TICKET_CATEGORY_ID', '1442410056019742750'))
+        except ValueError:
+            await interaction.followup.send('Error: Invalid ticket category ID in configuration!', ephemeral=True)
+            return
+            
+        ticket_category = guild.get_channel(ticket_category_id)
+        
+        if not ticket_category:
+            await interaction.followup.send('Error: Ticket category not found!', ephemeral=True)
+            return
+        
+        # Sanitize username for channel name (remove invalid characters)
+        # Remove non-alphanumeric chars, replace with single hyphen, strip leading/trailing hyphens
+        sanitized_name = re.sub(r'[^a-zA-Z0-9]+', '-', user.name).strip('-').lower()
+        
+        # Fallback to user ID if sanitized name is empty
+        if not sanitized_name:
+            sanitized_name = str(user.id)
+        
+        ticket_name = f'request-mm-{sanitized_name}'
+        existing_ticket = discord.utils.get(guild.text_channels, name=ticket_name)
+        
+        if existing_ticket:
+            await interaction.followup.send(f'You already have an open ticket: {existing_ticket.mention}', ephemeral=True)
+            return
+        
+        # Create ticket channel
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
+        
+        try:
+            ticket_channel = await guild.create_text_channel(
+                name=ticket_name,
+                category=ticket_category,
+                overwrites=overwrites
+            )
+            
+            # Role IDs to ping (from environment or defaults)
+            try:
+                role_id_1 = int(os.getenv('MM_ROLE_ID_1', '1442993726057087089'))
+                role_id_2 = int(os.getenv('MM_ROLE_ID_2', '1446603033445142559'))
+            except ValueError:
+                await interaction.followup.send('Error: Invalid role IDs in configuration!', ephemeral=True)
+                return
+                
+            role_ids = [role_id_1, role_id_2]
+            role_mentions = ' '.join([f'<@&{role_id}>' for role_id in role_ids])
+            
+            # Create welcome embed
+            welcome_embed = discord.Embed(
+                title=f"Welcome {user.display_name} to Eli's MM and Gambling!",
+                description="A middleman will be with you very shortly.",
+                color=discord.Color.blue()
+            )
+            welcome_embed.set_footer(text=f"Ticket created for {user.name}")
+            
+            # Send ping and embed
+            await ticket_channel.send(role_mentions)
+            await ticket_channel.send(embed=welcome_embed)
+            
+            await interaction.followup.send(f'Ticket created: {ticket_channel.mention}', ephemeral=True)
+            
+        except Exception as e:
+            await interaction.followup.send(f'Error creating ticket: {str(e)}', ephemeral=True)
+
+
+class Tickets(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+    
+    async def cog_load(self):
+        """Add the persistent view when the cog loads"""
+        self.bot.add_view(TicketButton())
+    
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        """Handle command errors"""
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send('❌ You don\'t have permission to use this command.')
+        elif isinstance(error, commands.MemberNotFound):
+            await ctx.send('❌ User not found. Please mention a valid user or provide a valid user ID.')
+        elif isinstance(error, commands.BadArgument):
+            await ctx.send('❌ Invalid argument provided. For `$mmban`, please mention a user: `$mmban @user`')
+    
+    async def setup_ticket_panel(self, ctx):
+        """Setup the ticket panel with button"""
+        embed = discord.Embed(
+            title="🎫 Middleman Services",
+            description="Click the button below to request a middleman for your trade.",
+            color=discord.Color.green()
+        )
+        embed.add_field(
+            name="How it works:",
+            value="1. Click 'Request MM' button\n2. A private ticket will be created\n3. A middleman will assist you shortly",
+            inline=False
+        )
+        
+        view = TicketButton()
+        await ctx.send(embed=embed, view=view)
+        await ctx.send('Ticket panel setup complete!', delete_after=5)
+    
+    @commands.command(name='mmpanel')
+    @commands.has_permissions(administrator=True)
+    async def mmpanel(self, ctx):
+        """Send the ticket panel (Admin only)"""
+        await self.setup_ticket_panel(ctx)
+    
+    @commands.command(name='mmban')
+    @commands.has_permissions(administrator=True)
+    async def mmban(self, ctx, *, member: discord.Member = None):
+        """Ban a user from using middleman services (Admin only)"""
+        if member is None:
+            await ctx.send('❌ Please specify a user to ban. Usage: `$mmban @user` or `$mmban UserID`')
+            return
+        
+        # Get MM ban role ID from environment or use default
+        try:
+            mm_ban_role_id = int(os.getenv('MM_BAN_ROLE_ID', '1446370352757342279'))
+        except ValueError:
+            await ctx.send('Error: Invalid MM ban role ID in configuration!')
+            return
+            
+        mm_ban_role = ctx.guild.get_role(mm_ban_role_id)
+        
+        if not mm_ban_role:
+            await ctx.send(f'Error: MM ban role not found! Please check role ID {mm_ban_role_id} exists in this server.')
+            return
+        
+        # Check if user already has the role
+        if mm_ban_role in member.roles:
+            await ctx.send(f'{member.mention} is already MM banned.')
+            return
+        
+        try:
+            # Add the MM ban role to the user
+            await member.add_roles(mm_ban_role, reason=f'MM banned by {ctx.author}')
+            
+            # Create professional ban embed to send to user
+            ban_embed = discord.Embed(
+                title="🚫 Middleman Services Ban",
+                description="You have been MM banned in **Eli's MM and Gambling!**",
+                color=discord.Color.red()
+            )
+            ban_embed.add_field(
+                name="What does this mean?",
+                value="You will no longer be able to use our middleman services.",
+                inline=False
+            )
+            ban_embed.add_field(
+                name="Questions?",
+                value="If you believe this is an error, please contact an administrator.",
+                inline=False
+            )
+            ban_embed.set_footer(text="Eli's MM and Gambling")
+            if ctx.guild.icon:
+                ban_embed.set_thumbnail(url=ctx.guild.icon.url)
+            
+            # Try to DM the user
+            try:
+                await member.send(embed=ban_embed)
+                dm_status = "✅ DM sent successfully"
+            except discord.Forbidden:
+                dm_status = "⚠️ Could not DM user (DMs disabled)"
+            except Exception as e:
+                dm_status = f"⚠️ Could not DM user: {str(e)}"
+            
+            # Confirm in channel
+            confirm_embed = discord.Embed(
+                title="✅ MM Ban Applied",
+                description=f'{member.mention} has been banned from using middleman services.',
+                color=discord.Color.orange()
+            )
+            confirm_embed.add_field(name="User", value=f"{member} (ID: {member.id})", inline=False)
+            confirm_embed.add_field(name="DM Status", value=dm_status, inline=False)
+            confirm_embed.add_field(name="Banned by", value=ctx.author.mention, inline=False)
+            await ctx.send(embed=confirm_embed)
+            
+        except discord.Forbidden:
+            await ctx.send('❌ Error: I don\'t have permission to add roles to this user. Please check my role hierarchy.')
+        except Exception as e:
+            await ctx.send(f'❌ Error applying MM ban: {str(e)}')
+    
+    @commands.command(name='close')
+    async def close_ticket(self, ctx):
+        """Close the current ticket"""
+        # Check if this is a ticket channel
+        if not ctx.channel.name.startswith('request-mm-'):
+            await ctx.send('This command can only be used in ticket channels!')
+            return
+        
+        embed = discord.Embed(
+            title="Closing Ticket",
+            description="This ticket will be deleted in 5 seconds...",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        
+        await asyncio.sleep(5)
+        await ctx.channel.delete()
+    
+    @commands.command(name='mmbans')
+    @commands.has_permissions(administrator=True)
+    async def mmbans(self, ctx):
+        """Show all users currently MM banned (Admin only)"""
+        # Get MM ban role ID from environment or use default
+        try:
+            mm_ban_role_id = int(os.getenv('MM_BAN_ROLE_ID', '1446370352757342279'))
+        except ValueError:
+            await ctx.send('❌ Error: Invalid MM ban role ID in configuration!')
+            return
+            
+        mm_ban_role = ctx.guild.get_role(mm_ban_role_id)
+        
+        if not mm_ban_role:
+            await ctx.send(f'❌ Error: MM ban role not found! Please check role ID {mm_ban_role_id} exists in this server.')
+            return
+        
+        # Get all members with the MM ban role
+        banned_members = [member for member in ctx.guild.members if mm_ban_role in member.roles]
+        
+        # Create embed to display banned users
+        embed = discord.Embed(
+            title="🚫 MM Banned Users",
+            description=f"Users currently banned from middleman services",
+            color=discord.Color.red()
+        )
+        
+        if banned_members:
+            # Create a list of banned users with their info
+            banned_list = []
+            for i, member in enumerate(banned_members, 1):
+                banned_list.append(f"{i}. {member.mention} - {member} (ID: {member.id})")
+            
+            # Discord embed field has a 1024 character limit, so split if needed
+            banned_text = "\n".join(banned_list)
+            if len(banned_text) <= 1024:
+                embed.add_field(name=f"Total: {len(banned_members)} user(s)", value=banned_text, inline=False)
+            else:
+                # Split into multiple fields if too long
+                chunks = []
+                current_chunk = []
+                current_length = 0
+                
+                for line in banned_list:
+                    if current_length + len(line) + 1 > 1024:
+                        chunks.append("\n".join(current_chunk))
+                        current_chunk = [line]
+                        current_length = len(line)
+                    else:
+                        current_chunk.append(line)
+                        current_length += len(line) + 1
+                
+                if current_chunk:
+                    chunks.append("\n".join(current_chunk))
+                
+                for i, chunk in enumerate(chunks, 1):
+                    field_name = f"Banned Users (Part {i})" if len(chunks) > 1 else f"Total: {len(banned_members)} user(s)"
+                    embed.add_field(name=field_name, value=chunk, inline=False)
+        else:
+            embed.add_field(name="No Banned Users", value="No users are currently MM banned.", inline=False)
+        
+        embed.set_footer(text=f"Requested by {ctx.author}")
+        await ctx.send(embed=embed)
+    
+    @commands.command(name='add')
+    async def add_to_ticket(self, ctx, member: discord.Member = None):
+        """Add a user to the current ticket"""
+        # Check if this is a ticket channel
+        if not ctx.channel.name.startswith('request-mm-'):
+            await ctx.send('❌ This command can only be used in ticket channels!')
+            return
+        
+        if member is None:
+            await ctx.send('❌ Please specify a user to add. Usage: `$add @user`')
+            return
+        
+        # Check if user already has access
+        overwrites = ctx.channel.overwrites_for(member)
+        if overwrites.read_messages:
+            await ctx.send(f'⚠️ {member.mention} already has access to this ticket.')
+            return
+        
+        try:
+            # Give the member permission to view and send messages in this channel
+            await ctx.channel.set_permissions(
+                member,
+                read_messages=True,
+                send_messages=True,
+                reason=f'Added to ticket by {ctx.author}'
+            )
+            
+            # Send confirmation embed
+            embed = discord.Embed(
+                description=f"{member.mention} has been added to the ticket!",
+                color=discord.Color.green()
+            )
+            await ctx.send(embed=embed)
+            
+        except discord.Forbidden:
+            await ctx.send('❌ Error: I don\'t have permission to modify channel permissions.')
+        except Exception as e:
+            await ctx.send(f'❌ Error adding user to ticket: {str(e)}')
+
+async def setup(bot):
+    await bot.add_cog(Tickets(bot))
