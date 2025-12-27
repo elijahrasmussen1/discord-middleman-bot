@@ -35,6 +35,7 @@ A Python-based Discord bot for managing middleman services with a ticket system 
 
 ### Admin Commands
 - `$setup_ticket` - Setup the ticket panel with Request MM button (Admin only)
+- `$mmpanel` - Send the ticket panel with Request MM button (Admin only)
 
 ### User Commands
 - `$ping` - Check if bot is responsive
@@ -42,7 +43,7 @@ A Python-based Discord bot for managing middleman services with a ticket system 
 
 ## How It Works
 
-1. Admin sets up the ticket panel using `$setup_ticket`
+1. Admin sets up the ticket panel using `$setup_ticket` or `$mmpanel`
 2. Users click the "Request MM" button on the ticket panel
 3. Bot creates a private ticket channel named `request-mm-[username]`
 4. Bot pings the configured middleman roles

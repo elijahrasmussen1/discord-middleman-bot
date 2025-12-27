@@ -114,6 +114,12 @@ class Tickets(commands.Cog):
         await ctx.send(embed=embed, view=view)
         await ctx.send('Ticket panel setup complete!', delete_after=5)
     
+    @commands.command(name='mmpanel')
+    @commands.has_permissions(administrator=True)
+    async def mmpanel(self, ctx):
+        """Send the ticket panel (Admin only)"""
+        await self.setup_ticket_panel(ctx)
+    
     @commands.command(name='close')
     async def close_ticket(self, ctx):
         """Close the current ticket"""

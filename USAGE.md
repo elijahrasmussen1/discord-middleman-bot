@@ -23,7 +23,7 @@
    ```
 
 4. **Setup Ticket Panel**
-   - In your Discord server, run: `$setup_ticket`
+   - In your Discord server, run: `$setup_ticket` or `$mmpanel`
    - This creates an embed with the "Request MM" button
 
 ## User Flow
