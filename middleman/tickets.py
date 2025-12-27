@@ -3,6 +3,8 @@ from discord.ext import commands
 from discord.ui import Button, View
 from discord import app_commands
 import asyncio
+import os
+import re
 
 class TicketButton(View):
     def __init__(self):
@@ -16,16 +18,17 @@ class TicketButton(View):
         guild = interaction.guild
         user = interaction.user
         
-        # Get the ticket category
-        ticket_category_id = 1442410056019742750
+        # Get the ticket category from environment or use default
+        ticket_category_id = int(os.getenv('TICKET_CATEGORY_ID', '1442410056019742750'))
         ticket_category = guild.get_channel(ticket_category_id)
         
         if not ticket_category:
             await interaction.followup.send('Error: Ticket category not found!', ephemeral=True)
             return
         
-        # Check if user already has a ticket
-        ticket_name = f'request-mm-{user.name}'.lower().replace(' ', '-')
+        # Sanitize username for channel name (remove invalid characters)
+        sanitized_name = re.sub(r'[^a-z0-9-]', '', user.name.lower().replace(' ', '-'))
+        ticket_name = f'request-mm-{sanitized_name}'
         existing_ticket = discord.utils.get(guild.text_channels, name=ticket_name)
         
         if existing_ticket:
@@ -46,8 +49,10 @@ class TicketButton(View):
                 overwrites=overwrites
             )
             
-            # Role IDs to ping
-            role_ids = [1442993726057087089, 1446603033445142559]
+            # Role IDs to ping (from environment or defaults)
+            role_id_1 = int(os.getenv('MM_ROLE_ID_1', '1442993726057087089'))
+            role_id_2 = int(os.getenv('MM_ROLE_ID_2', '1446603033445142559'))
+            role_ids = [role_id_1, role_id_2]
             role_mentions = ' '.join([f'<@&{role_id}>' for role_id in role_ids])
             
             # Create welcome embed
