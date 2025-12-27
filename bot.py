@@ -59,5 +59,5 @@ if __name__ == '__main__':
     # Get bot token from environment variable or use placeholder
     bot_token = os.getenv("token", "token")
     if bot_token == "token":
-        print("⚠️ WARNING: Using placeholder bot token. Set DISCORD_BOT_TOKEN environment variable.")
+        print("⚠️ WARNING: Using placeholder bot token. Set token environment variable.")
     bot.run(bot_token)
