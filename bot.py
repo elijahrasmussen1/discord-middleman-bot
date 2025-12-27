@@ -27,12 +27,15 @@ async def on_ready():
     except Exception as e:
         print(f'Failed to load extension: {e}')
     
-    # Sync commands
-    try:
-        synced = await bot.tree.sync()
-        print(f'Synced {len(synced)} command(s)')
-    except Exception as e:
-        print(f'Failed to sync commands: {e}')
+    # Sync commands only if SYNC_COMMANDS environment variable is set
+    if os.getenv('SYNC_COMMANDS', '').lower() == 'true':
+        try:
+            synced = await bot.tree.sync()
+            print(f'Synced {len(synced)} command(s)')
+        except Exception as e:
+            print(f'Failed to sync commands: {e}')
+    else:
+        print('Skipping command sync (set SYNC_COMMANDS=true to enable)')
 
 @bot.command(name='ping')
 async def ping(ctx):

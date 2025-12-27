@@ -19,7 +19,12 @@ class TicketButton(View):
         user = interaction.user
         
         # Get the ticket category from environment or use default
-        ticket_category_id = int(os.getenv('TICKET_CATEGORY_ID', '1442410056019742750'))
+        try:
+            ticket_category_id = int(os.getenv('TICKET_CATEGORY_ID', '1442410056019742750'))
+        except ValueError:
+            await interaction.followup.send('Error: Invalid ticket category ID in configuration!', ephemeral=True)
+            return
+            
         ticket_category = guild.get_channel(ticket_category_id)
         
         if not ticket_category:
@@ -27,7 +32,13 @@ class TicketButton(View):
             return
         
         # Sanitize username for channel name (remove invalid characters)
-        sanitized_name = re.sub(r'[^a-z0-9-]', '', user.name.lower().replace(' ', '-'))
+        # Remove non-alphanumeric chars, replace with single hyphen, strip leading/trailing hyphens
+        sanitized_name = re.sub(r'[^a-zA-Z0-9]+', '-', user.name).strip('-').lower()
+        
+        # Fallback to user ID if sanitized name is empty
+        if not sanitized_name:
+            sanitized_name = str(user.id)
+        
         ticket_name = f'request-mm-{sanitized_name}'
         existing_ticket = discord.utils.get(guild.text_channels, name=ticket_name)
         
@@ -50,8 +61,13 @@ class TicketButton(View):
             )
             
             # Role IDs to ping (from environment or defaults)
-            role_id_1 = int(os.getenv('MM_ROLE_ID_1', '1442993726057087089'))
-            role_id_2 = int(os.getenv('MM_ROLE_ID_2', '1446603033445142559'))
+            try:
+                role_id_1 = int(os.getenv('MM_ROLE_ID_1', '1442993726057087089'))
+                role_id_2 = int(os.getenv('MM_ROLE_ID_2', '1446603033445142559'))
+            except ValueError:
+                await interaction.followup.send('Error: Invalid role IDs in configuration!', ephemeral=True)
+                return
+                
             role_ids = [role_id_1, role_id_2]
             role_mentions = ' '.join([f'<@&{role_id}>' for role_id in role_ids])
             
