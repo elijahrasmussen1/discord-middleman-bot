@@ -11,7 +11,7 @@
    - Copy `.env.example` to `.env`
    - Add your Discord bot token and configuration:
      ```
-     DISCORD_TOKEN=your_bot_token_here
+     token=your_bot_token_here
      TICKET_CATEGORY_ID=1442410056019742750
      MM_ROLE_ID_1=1442993726057087089
      MM_ROLE_ID_2=1446603033445142559

@@ -20,7 +20,7 @@ A Python-based Discord bot for managing middleman services with a ticket system 
    - Copy `.env.example` to `.env`
    - Add your Discord bot token and configuration to `.env`:
      ```
-     DISCORD_TOKEN=your_bot_token_here
+     token=your_bot_token_here
      TICKET_CATEGORY_ID=1442410056019742750
      MM_ROLE_ID_1=1442993726057087089
      MM_ROLE_ID_2=1446603033445142559
@@ -54,7 +54,7 @@ A Python-based Discord bot for managing middleman services with a ticket system 
 ## Configuration
 
 The bot uses environment variables for configuration (see `.env.example`):
-- `DISCORD_TOKEN`: Your Discord bot token (required)
+- `token`: Your Discord bot token (required)
 - `TICKET_CATEGORY_ID`: Category ID where tickets are created (default: 1442410056019742750)
 - `MM_ROLE_ID_1`: First middleman role to ping (default: 1442993726057087089)
 - `MM_ROLE_ID_2`: Second middleman role to ping (default: 1446603033445142559)

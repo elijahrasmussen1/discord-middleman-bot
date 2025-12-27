@@ -52,10 +52,12 @@ async def setup_ticket(ctx):
     else:
         await ctx.send('Tickets cog not loaded!')
 
-# Run the bot
+# -----------------------------
+# RUN BOT
+# -----------------------------
 if __name__ == '__main__':
-    token = os.getenv('DISCORD_TOKEN')
-    if not token:
-        print('Error: DISCORD_TOKEN not found in environment variables')
-    else:
-        bot.run(token)
+    # Get bot token from environment variable or use placeholder
+    bot_token = os.getenv("token", "token")
+    if bot_token == "token":
+        print("⚠️ WARNING: Using placeholder bot token. Set DISCORD_BOT_TOKEN environment variable.")
+    bot.run(bot_token)
