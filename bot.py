@@ -56,6 +56,7 @@ async def assist(ctx):
         value=(
             "`$mmpanel` - Deploy the middleman ticket panel\n"
             "`$mmban [user]` - Ban a user from using MM services\n"
+            "`$mmbans` - Show all MM banned users\n"
             "`$assist` - Show this help message"
         ),
         inline=False
@@ -66,6 +67,7 @@ async def assist(ctx):
         value=(
             "`$ping` - Check bot responsiveness\n"
             "`$close` - Close current ticket (ticket channels only)\n"
+            "`$add [user]` - Add a user to the current ticket\n"
             "**Request MM Button** - Click to create a ticket"
         ),
         inline=False

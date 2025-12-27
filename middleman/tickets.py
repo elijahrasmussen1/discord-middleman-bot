@@ -234,6 +234,109 @@ class Tickets(commands.Cog):
         
         await asyncio.sleep(5)
         await ctx.channel.delete()
+    
+    @commands.command(name='mmbans')
+    @commands.has_permissions(administrator=True)
+    async def mmbans(self, ctx):
+        """Show all users currently MM banned (Admin only)"""
+        # Get MM ban role ID from environment or use default
+        try:
+            mm_ban_role_id = int(os.getenv('MM_BAN_ROLE_ID', '1446370352757342279'))
+        except ValueError:
+            await ctx.send('❌ Error: Invalid MM ban role ID in configuration!')
+            return
+            
+        mm_ban_role = ctx.guild.get_role(mm_ban_role_id)
+        
+        if not mm_ban_role:
+            await ctx.send(f'❌ Error: MM ban role not found! Please check role ID {mm_ban_role_id} exists in this server.')
+            return
+        
+        # Get all members with the MM ban role
+        banned_members = [member for member in ctx.guild.members if mm_ban_role in member.roles]
+        
+        # Create embed to display banned users
+        embed = discord.Embed(
+            title="🚫 MM Banned Users",
+            description=f"Users currently banned from middleman services",
+            color=discord.Color.red()
+        )
+        
+        if banned_members:
+            # Create a list of banned users with their info
+            banned_list = []
+            for i, member in enumerate(banned_members, 1):
+                banned_list.append(f"{i}. {member.mention} - {member} (ID: {member.id})")
+            
+            # Discord embed field has a 1024 character limit, so split if needed
+            banned_text = "\n".join(banned_list)
+            if len(banned_text) <= 1024:
+                embed.add_field(name=f"Total: {len(banned_members)} user(s)", value=banned_text, inline=False)
+            else:
+                # Split into multiple fields if too long
+                chunks = []
+                current_chunk = []
+                current_length = 0
+                
+                for line in banned_list:
+                    if current_length + len(line) + 1 > 1024:
+                        chunks.append("\n".join(current_chunk))
+                        current_chunk = [line]
+                        current_length = len(line)
+                    else:
+                        current_chunk.append(line)
+                        current_length += len(line) + 1
+                
+                if current_chunk:
+                    chunks.append("\n".join(current_chunk))
+                
+                for i, chunk in enumerate(chunks, 1):
+                    field_name = f"Banned Users (Part {i})" if len(chunks) > 1 else f"Total: {len(banned_members)} user(s)"
+                    embed.add_field(name=field_name, value=chunk, inline=False)
+        else:
+            embed.add_field(name="No Banned Users", value="No users are currently MM banned.", inline=False)
+        
+        embed.set_footer(text=f"Requested by {ctx.author}")
+        await ctx.send(embed=embed)
+    
+    @commands.command(name='add')
+    async def add_to_ticket(self, ctx, member: discord.Member = None):
+        """Add a user to the current ticket"""
+        # Check if this is a ticket channel
+        if not ctx.channel.name.startswith('request-mm-'):
+            await ctx.send('❌ This command can only be used in ticket channels!')
+            return
+        
+        if member is None:
+            await ctx.send('❌ Please specify a user to add. Usage: `$add @user`')
+            return
+        
+        # Check if user already has access
+        overwrites = ctx.channel.overwrites_for(member)
+        if overwrites.read_messages:
+            await ctx.send(f'⚠️ {member.mention} already has access to this ticket.')
+            return
+        
+        try:
+            # Give the member permission to view and send messages in this channel
+            await ctx.channel.set_permissions(
+                member,
+                read_messages=True,
+                send_messages=True,
+                reason=f'Added to ticket by {ctx.author}'
+            )
+            
+            # Send confirmation embed
+            embed = discord.Embed(
+                description=f"{member.mention} has been added to the ticket!",
+                color=discord.Color.green()
+            )
+            await ctx.send(embed=embed)
+            
+        except discord.Forbidden:
+            await ctx.send('❌ Error: I don\'t have permission to modify channel permissions.')
+        except Exception as e:
+            await ctx.send(f'❌ Error adding user to ticket: {str(e)}')
 
 async def setup(bot):
     await bot.add_cog(Tickets(bot))
