@@ -109,6 +109,16 @@ class Tickets(commands.Cog):
         """Add the persistent view when the cog loads"""
         self.bot.add_view(TicketButton())
     
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        """Handle command errors"""
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send('❌ You don\'t have permission to use this command.')
+        elif isinstance(error, commands.MemberNotFound):
+            await ctx.send('❌ User not found. Please mention a valid user or provide a valid user ID.')
+        elif isinstance(error, commands.BadArgument):
+            await ctx.send('❌ Invalid argument provided. For `$mmban`, please mention a user: `$mmban @user`')
+    
     async def setup_ticket_panel(self, ctx):
         """Setup the ticket panel with button"""
         embed = discord.Embed(
@@ -134,14 +144,23 @@ class Tickets(commands.Cog):
     
     @commands.command(name='mmban')
     @commands.has_permissions(administrator=True)
-    async def mmban(self, ctx, member: discord.Member):
+    async def mmban(self, ctx, *, member: discord.Member = None):
         """Ban a user from using middleman services (Admin only)"""
+        if member is None:
+            await ctx.send('❌ Please specify a user to ban. Usage: `$mmban @user` or `$mmban UserID`')
+            return
+        
         # Get MM ban role ID from environment or use default
-        mm_ban_role_id = int(os.getenv('MM_BAN_ROLE_ID', '1446370352757342279'))
+        try:
+            mm_ban_role_id = int(os.getenv('MM_BAN_ROLE_ID', '1446370352757342279'))
+        except ValueError:
+            await ctx.send('Error: Invalid MM ban role ID in configuration!')
+            return
+            
         mm_ban_role = ctx.guild.get_role(mm_ban_role_id)
         
         if not mm_ban_role:
-            await ctx.send('Error: MM ban role not found! Please check role ID configuration.')
+            await ctx.send(f'Error: MM ban role not found! Please check role ID {mm_ban_role_id} exists in this server.')
             return
         
         # Check if user already has the role
@@ -170,7 +189,8 @@ class Tickets(commands.Cog):
                 inline=False
             )
             ban_embed.set_footer(text="Eli's MM and Gambling")
-            ban_embed.set_thumbnail(url=ctx.guild.icon.url if ctx.guild.icon else None)
+            if ctx.guild.icon:
+                ban_embed.set_thumbnail(url=ctx.guild.icon.url)
             
             # Try to DM the user
             try:
@@ -183,17 +203,19 @@ class Tickets(commands.Cog):
             
             # Confirm in channel
             confirm_embed = discord.Embed(
-                title="MM Ban Applied",
+                title="✅ MM Ban Applied",
                 description=f'{member.mention} has been banned from using middleman services.',
                 color=discord.Color.orange()
             )
-            confirm_embed.add_field(name="Status", value=dm_status, inline=False)
+            confirm_embed.add_field(name="User", value=f"{member} (ID: {member.id})", inline=False)
+            confirm_embed.add_field(name="DM Status", value=dm_status, inline=False)
+            confirm_embed.add_field(name="Banned by", value=ctx.author.mention, inline=False)
             await ctx.send(embed=confirm_embed)
             
         except discord.Forbidden:
-            await ctx.send('Error: I don\'t have permission to add roles to this user.')
+            await ctx.send('❌ Error: I don\'t have permission to add roles to this user. Please check my role hierarchy.')
         except Exception as e:
-            await ctx.send(f'Error applying MM ban: {str(e)}')
+            await ctx.send(f'❌ Error applying MM ban: {str(e)}')
     
     @commands.command(name='close')
     async def close_ticket(self, ctx):
