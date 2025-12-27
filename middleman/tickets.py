@@ -18,6 +18,18 @@ class TicketButton(View):
         guild = interaction.guild
         user = interaction.user
         
+        # Check if user has MM ban role
+        mm_ban_role_id = int(os.getenv('MM_BAN_ROLE_ID', '1446370352757342279'))
+        mm_ban_role = guild.get_role(mm_ban_role_id)
+        
+        if mm_ban_role and mm_ban_role in user.roles:
+            await interaction.followup.send(
+                'You are currently banned from using middleman services. '
+                'Please contact an administrator if you believe this is an error.',
+                ephemeral=True
+            )
+            return
+        
         # Get the ticket category from environment or use default
         try:
             ticket_category_id = int(os.getenv('TICKET_CATEGORY_ID', '1442410056019742750'))
@@ -119,6 +131,69 @@ class Tickets(commands.Cog):
     async def mmpanel(self, ctx):
         """Send the ticket panel (Admin only)"""
         await self.setup_ticket_panel(ctx)
+    
+    @commands.command(name='mmban')
+    @commands.has_permissions(administrator=True)
+    async def mmban(self, ctx, member: discord.Member):
+        """Ban a user from using middleman services (Admin only)"""
+        # Get MM ban role ID from environment or use default
+        mm_ban_role_id = int(os.getenv('MM_BAN_ROLE_ID', '1446370352757342279'))
+        mm_ban_role = ctx.guild.get_role(mm_ban_role_id)
+        
+        if not mm_ban_role:
+            await ctx.send('Error: MM ban role not found! Please check role ID configuration.')
+            return
+        
+        # Check if user already has the role
+        if mm_ban_role in member.roles:
+            await ctx.send(f'{member.mention} is already MM banned.')
+            return
+        
+        try:
+            # Add the MM ban role to the user
+            await member.add_roles(mm_ban_role, reason=f'MM banned by {ctx.author}')
+            
+            # Create professional ban embed to send to user
+            ban_embed = discord.Embed(
+                title="🚫 Middleman Services Ban",
+                description="You have been MM banned in **Eli's MM and Gambling!**",
+                color=discord.Color.red()
+            )
+            ban_embed.add_field(
+                name="What does this mean?",
+                value="You will no longer be able to use our middleman services.",
+                inline=False
+            )
+            ban_embed.add_field(
+                name="Questions?",
+                value="If you believe this is an error, please contact an administrator.",
+                inline=False
+            )
+            ban_embed.set_footer(text="Eli's MM and Gambling")
+            ban_embed.set_thumbnail(url=ctx.guild.icon.url if ctx.guild.icon else None)
+            
+            # Try to DM the user
+            try:
+                await member.send(embed=ban_embed)
+                dm_status = "✅ DM sent successfully"
+            except discord.Forbidden:
+                dm_status = "⚠️ Could not DM user (DMs disabled)"
+            except Exception as e:
+                dm_status = f"⚠️ Could not DM user: {str(e)}"
+            
+            # Confirm in channel
+            confirm_embed = discord.Embed(
+                title="MM Ban Applied",
+                description=f'{member.mention} has been banned from using middleman services.',
+                color=discord.Color.orange()
+            )
+            confirm_embed.add_field(name="Status", value=dm_status, inline=False)
+            await ctx.send(embed=confirm_embed)
+            
+        except discord.Forbidden:
+            await ctx.send('Error: I don\'t have permission to add roles to this user.')
+        except Exception as e:
+            await ctx.send(f'Error applying MM ban: {str(e)}')
     
     @commands.command(name='close')
     async def close_ticket(self, ctx):

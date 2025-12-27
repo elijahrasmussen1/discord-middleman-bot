@@ -42,15 +42,37 @@ async def ping(ctx):
     """Check if bot is responsive"""
     await ctx.send(f'Pong! Latency: {round(bot.latency * 1000)}ms')
 
-@bot.command(name='setup_ticket')
-@commands.has_permissions(administrator=True)
-async def setup_ticket(ctx):
-    """Setup the ticket panel (Admin only)"""
-    cog = bot.get_cog('Tickets')
-    if cog:
-        await cog.setup_ticket_panel(ctx)
-    else:
-        await ctx.send('Tickets cog not loaded!')
+@bot.command(name='assist')
+async def assist(ctx):
+    """Display all available commands"""
+    embed = discord.Embed(
+        title="📋 Bot Commands",
+        description="Here are all available commands for Eli's MM and Gambling bot:",
+        color=discord.Color.blue()
+    )
+    
+    embed.add_field(
+        name="👑 Admin Commands",
+        value=(
+            "`$mmpanel` - Deploy the middleman ticket panel\n"
+            "`$mmban [user]` - Ban a user from using MM services\n"
+            "`$assist` - Show this help message"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="👤 User Commands",
+        value=(
+            "`$ping` - Check bot responsiveness\n"
+            "`$close` - Close current ticket (ticket channels only)\n"
+            "**Request MM Button** - Click to create a ticket"
+        ),
+        inline=False
+    )
+    
+    embed.set_footer(text="Use $ prefix for all commands")
+    await ctx.send(embed=embed)
 
 # -----------------------------
 # RUN BOT
