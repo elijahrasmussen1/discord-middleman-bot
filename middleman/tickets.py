@@ -144,6 +144,21 @@ class TicketPanel(View):
             await interaction.followup.send('Error: Ticket category not found!', ephemeral=True)
             return
         
+        # Try to get the other user from Discord ID
+        other_user = None
+        try:
+            other_user_id = int(discord_id.strip())
+            other_user = guild.get_member(other_user_id)
+            if not other_user:
+                # Try to fetch if not in cache
+                try:
+                    other_user = await guild.fetch_member(other_user_id)
+                except:
+                    pass
+        except ValueError:
+            # Invalid Discord ID format
+            pass
+        
         # Sanitize username for channel name (remove invalid characters)
         # Remove non-alphanumeric chars, replace with single hyphen, strip leading/trailing hyphens
         sanitized_name = re.sub(r'[^a-zA-Z0-9]+', '-', user.name).strip('-').lower()
@@ -179,6 +194,10 @@ class TicketPanel(View):
             guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
         }
         
+        # Add the other user to the ticket if found
+        if other_user:
+            overwrites[other_user] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        
         try:
             ticket_channel = await guild.create_text_channel(
                 name=ticket_name,
@@ -197,26 +216,53 @@ class TicketPanel(View):
             role_ids = [role_id_1, role_id_2]
             role_mentions = ' '.join([f'<@&{role_id}>' for role_id in role_ids])
             
-            # Create welcome embed with trade information
+            # Create professional welcome embed
             welcome_embed = discord.Embed(
-                title=f"Welcome {user.display_name} to Eli's MM and Gambling!",
-                description="A middleman will be with you very shortly.",
                 color=discord.Color.blue()
             )
-            welcome_embed.add_field(name="Trade Category", value=f"**{category}**", inline=False)
             
-            # Add game field for MM2/JB/ETC category
-            if category == "mm2-jb-etc" and game:
-                welcome_embed.add_field(name="What is the game?", value=game, inline=False)
+            # Header with ticket creator and other user
+            if other_user:
+                header_text = f"{user.mention} has made a middleman ticket with {other_user.mention}"
+            else:
+                header_text = f"{user.mention} has made a middleman ticket with <@{discord_id}>"
             
-            welcome_embed.add_field(name="What is the trade?", value=trade, inline=False)
-            welcome_embed.add_field(name="Your side" + (" of the trade" if category == "mm2-jb-etc" else ""), value=your_side, inline=True)
-            welcome_embed.add_field(name="Their side" + (" of the trade" if category == "mm2-jb-etc" else ""), value=their_side, inline=True)
-            welcome_embed.add_field(name="Discord ID", value=discord_id, inline=False)
-            welcome_embed.set_footer(text=f"Ticket created for {user.name}")
+            welcome_embed.add_field(name="", value=f"**{header_text}**", inline=False)
             
-            # Send ping and embed
-            await ticket_channel.send(role_mentions)
+            # Display the full trade
+            if game:
+                trade_display = f"**{trade}** ({game})"
+            else:
+                trade_display = f"**{trade}**"
+            welcome_embed.add_field(name="", value=trade_display, inline=False)
+            
+            # Two-column layout for trade sides
+            welcome_embed.add_field(
+                name=f"**{user.display_name}'s Side**",
+                value=your_side,
+                inline=True
+            )
+            welcome_embed.add_field(
+                name=f"**Other User's Side**",
+                value=their_side,
+                inline=True
+            )
+            
+            # Add server logo if configured (optional)
+            server_logo_url = os.getenv('SERVER_LOGO_URL', '')
+            if server_logo_url:
+                welcome_embed.set_thumbnail(url=server_logo_url)
+            
+            # Footer message
+            welcome_embed.set_footer(text="Welcome to Eli's MM Service! A middleman will be here very soon.")
+            
+            # Send pings (roles + both users) and embed
+            user_pings = f"{user.mention}"
+            if other_user:
+                user_pings += f" {other_user.mention}"
+            
+            ping_message = f"{role_mentions} {user_pings}"
+            await ticket_channel.send(ping_message)
             await ticket_channel.send(embed=welcome_embed)
             
             await interaction.followup.send(f'Ticket created: {ticket_channel.mention}', ephemeral=True)
