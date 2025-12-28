@@ -247,7 +247,7 @@ class Tickets(commands.Cog):
             value=(
                 "> **Important**\n"
                 "> • Troll tickets are not allowed. Once the trade is completed you must vouch your middleman in their respective servers.\n"
-                "> • If you have trouble getting a user's ID **[click here for tutorial](https://youtube.com/shorts/pMG8CuIADDs?feature=shared)**.\n"
+                "> • If you have trouble getting a user's ID **[click here to find a users ID](https://discord.com/channels/1442270020959867162/1454757054471475210)**.\n"
                 "> • Make sure to read the rules before making a ticket."
             ),
             inline=False
