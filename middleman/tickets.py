@@ -1,10 +1,37 @@
 import discord
 from discord.ext import commands
-from discord.ui import Button, View
+from discord.ui import Button, View, Select
 from discord import app_commands
 import asyncio
 import os
 import re
+
+class CategorySelect(View):
+    def __init__(self, user):
+        super().__init__(timeout=180)  # 3 minute timeout
+        self.user = user
+        self.selected_category = None
+    
+    @discord.ui.select(
+        placeholder="Please click your trade category",
+        min_values=1,
+        max_values=1,
+        options=[
+            discord.SelectOption(label="0-150m", value="0-150m", emoji="💰"),
+            discord.SelectOption(label="150m-500m", value="150m-500m", emoji="💎"),
+            discord.SelectOption(label="500m-1b", value="500m-1b", emoji="👑"),
+            discord.SelectOption(label="Drag / OG", value="drag-og", emoji="🔥")
+        ]
+    )
+    async def category_select(self, interaction: discord.Interaction, select: Select):
+        """Handle category selection"""
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message("This selection is not for you!", ephemeral=True)
+            return
+        
+        self.selected_category = select.values[0]
+        await interaction.response.defer()
+        self.stop()
 
 class TicketButton(View):
     def __init__(self):
@@ -13,22 +40,42 @@ class TicketButton(View):
     @discord.ui.button(label='Request MM', style=discord.ButtonStyle.primary, custom_id='request_mm_button')
     async def request_mm(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Handle ticket creation when button is clicked"""
-        await interaction.response.defer(ephemeral=True)
-        
         guild = interaction.guild
         user = interaction.user
         
-        # Check if user has MM ban role
+        # Check if user has MM ban role first
         mm_ban_role_id = int(os.getenv('MM_BAN_ROLE_ID', '1446370352757342279'))
         mm_ban_role = guild.get_role(mm_ban_role_id)
         
         if mm_ban_role and mm_ban_role in user.roles:
-            await interaction.followup.send(
+            await interaction.response.send_message(
                 'You are currently banned from using middleman services. '
                 'Please contact an administrator if you believe this is an error.',
                 ephemeral=True
             )
             return
+        
+        # Show category selection
+        category_view = CategorySelect(user)
+        await interaction.response.send_message(
+            "Please select your trade category:",
+            view=category_view,
+            ephemeral=True
+        )
+        
+        # Wait for category selection
+        await category_view.wait()
+        
+        if not category_view.selected_category:
+            return  # User didn't select or timed out
+        
+        # Continue with ticket creation
+        await self.create_ticket(interaction, user, guild, category_view.selected_category)
+    
+    async def create_ticket(self, interaction: discord.Interaction, user: discord.Member, guild: discord.Guild, category: str):
+        """Create the ticket channel after category selection"""
+    async def create_ticket(self, interaction: discord.Interaction, user: discord.Member, guild: discord.Guild, category: str):
+        """Create the ticket channel after category selection"""
         
         # Get the ticket category from environment or use default
         try:
@@ -83,12 +130,13 @@ class TicketButton(View):
             role_ids = [role_id_1, role_id_2]
             role_mentions = ' '.join([f'<@&{role_id}>' for role_id in role_ids])
             
-            # Create welcome embed
+            # Create welcome embed with category
             welcome_embed = discord.Embed(
                 title=f"Welcome {user.display_name} to Eli's MM and Gambling!",
                 description="A middleman will be with you very shortly.",
                 color=discord.Color.blue()
             )
+            welcome_embed.add_field(name="Trade Category", value=f"**{category}**", inline=False)
             welcome_embed.set_footer(text=f"Ticket created for {user.name}")
             
             # Send ping and embed
