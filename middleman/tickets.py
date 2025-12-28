@@ -6,16 +6,15 @@ import asyncio
 import os
 import re
 
-class CategorySelect(View):
-    def __init__(self, user):
-        super().__init__(timeout=180)  # 3 minute timeout
-        self.user = user
-        self.selected_category = None
+class TicketPanel(View):
+    def __init__(self):
+        super().__init__(timeout=None)
     
     @discord.ui.select(
-        placeholder="Please click your trade category",
+        placeholder="Select a category to begin",
         min_values=1,
         max_values=1,
+        custom_id='ticket_category_select',
         options=[
             discord.SelectOption(label="0-150m", value="0-150m"),
             discord.SelectOption(label="150m-500m", value="150m-500m"),
@@ -24,22 +23,7 @@ class CategorySelect(View):
         ]
     )
     async def category_select(self, interaction: discord.Interaction, select: Select):
-        """Handle category selection"""
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message("This selection is not for you!", ephemeral=True)
-            return
-        
-        self.selected_category = select.values[0]
-        await interaction.response.defer()
-        self.stop()
-
-class TicketButton(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-    
-    @discord.ui.button(label='Request MM', style=discord.ButtonStyle.primary, custom_id='request_mm_button')
-    async def request_mm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Handle ticket creation when button is clicked"""
+        """Handle category selection and create ticket"""
         guild = interaction.guild
         user = interaction.user
         
@@ -55,25 +39,14 @@ class TicketButton(View):
             )
             return
         
-        # Show category selection
-        category_view = CategorySelect(user)
-        await interaction.response.send_message(
-            "Please select your trade category:",
-            view=category_view,
-            ephemeral=True
-        )
+        selected_category = select.values[0]
         
-        # Wait for category selection
-        await category_view.wait()
+        # Defer the response while we create the ticket
+        await interaction.response.defer(ephemeral=True)
         
-        if not category_view.selected_category:
-            return  # User didn't select or timed out
-        
-        # Continue with ticket creation
-        await self.create_ticket(interaction, user, guild, category_view.selected_category)
+        # Create the ticket
+        await self.create_ticket(interaction, user, guild, selected_category)
     
-    async def create_ticket(self, interaction: discord.Interaction, user: discord.Member, guild: discord.Guild, category: str):
-        """Create the ticket channel after category selection"""
     async def create_ticket(self, interaction: discord.Interaction, user: discord.Member, guild: discord.Guild, category: str):
         """Create the ticket channel after category selection"""
         
@@ -155,7 +128,7 @@ class Tickets(commands.Cog):
     
     async def cog_load(self):
         """Add the persistent view when the cog loads"""
-        self.bot.add_view(TicketButton())
+        self.bot.add_view(TicketPanel())
     
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
@@ -168,12 +141,12 @@ class Tickets(commands.Cog):
             await ctx.send('❌ Invalid argument provided. For `$mmban`, please mention a user: `$mmban @user`')
     
     async def setup_ticket_panel(self, ctx):
-        """Setup the ticket panel with button"""
+        """Setup the ticket panel with category selection"""
         embed = discord.Embed(
             title="**Eli's MM Service**",
             description=(
                 "To request a middleman from this server\n"
-                "click the Request Middleman button below.\n"
+                "select a category to begin.\n"
             ),
             color=discord.Color.blue()
         )
@@ -198,7 +171,7 @@ class Tickets(commands.Cog):
             inline=False
         )
         
-        view = TicketButton()
+        view = TicketPanel()
         await ctx.send(embed=embed, view=view)
         await ctx.send('Ticket panel setup complete!', delete_after=5)
     
