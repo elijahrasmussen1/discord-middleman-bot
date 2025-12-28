@@ -1,10 +1,61 @@
 import discord
 from discord.ext import commands
-from discord.ui import Button, View, Select
+from discord.ui import Button, View, Select, Modal, TextInput
 from discord import app_commands
 import asyncio
 import os
 import re
+
+class TradeQuestionnaire(Modal):
+    """Modal for collecting trade information"""
+    def __init__(self, category: str):
+        super().__init__(title=f"Trade Information - {category}")
+        self.category = category
+        
+        self.trade = TextInput(
+            label="What is the trade?",
+            placeholder="E.g., Garama (SAB) for Apple Pay",
+            required=True,
+            max_length=200
+        )
+        
+        self.your_side = TextInput(
+            label="What is your side?",
+            placeholder="E.g., Garama (SAB) or $50 Apple Pay",
+            required=True,
+            max_length=200
+        )
+        
+        self.their_side = TextInput(
+            label="What is their side?",
+            placeholder="E.g., $50 Apple Pay or Garama (SAB)",
+            required=True,
+            max_length=200
+        )
+        
+        self.discord_id = TextInput(
+            label="Discord ID? (required)",
+            placeholder="Enter the other user's Discord ID",
+            required=True,
+            max_length=20
+        )
+        
+        self.add_item(self.trade)
+        self.add_item(self.your_side)
+        self.add_item(self.their_side)
+        self.add_item(self.discord_id)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        """Handle questionnaire submission"""
+        # Store the responses on the modal instance
+        self.trade_value = self.trade.value
+        self.your_side_value = self.your_side.value
+        self.their_side_value = self.their_side.value
+        self.discord_id_value = self.discord_id.value
+        
+        # Defer response
+        await interaction.response.defer(ephemeral=True)
+
 
 class TicketPanel(View):
     def __init__(self):
@@ -23,7 +74,7 @@ class TicketPanel(View):
         ]
     )
     async def category_select(self, interaction: discord.Interaction, select: Select):
-        """Handle category selection and create ticket"""
+        """Handle category selection and show questionnaire"""
         guild = interaction.guild
         user = interaction.user
         
@@ -41,14 +92,27 @@ class TicketPanel(View):
         
         selected_category = select.values[0]
         
-        # Defer the response while we create the ticket
-        await interaction.response.defer(ephemeral=True)
+        # Show the questionnaire modal
+        modal = TradeQuestionnaire(selected_category)
+        await interaction.response.send_modal(modal)
         
-        # Create the ticket
-        await self.create_ticket(interaction, user, guild, selected_category)
+        # Wait for modal submission
+        await modal.wait()
+        
+        # Create the ticket with the questionnaire data
+        await self.create_ticket(
+            interaction, 
+            user, 
+            guild, 
+            selected_category,
+            modal.trade_value,
+            modal.your_side_value,
+            modal.their_side_value,
+            modal.discord_id_value
+        )
     
-    async def create_ticket(self, interaction: discord.Interaction, user: discord.Member, guild: discord.Guild, category: str):
-        """Create the ticket channel after category selection"""
+    async def create_ticket(self, interaction: discord.Interaction, user: discord.Member, guild: discord.Guild, category: str, trade: str, your_side: str, their_side: str, discord_id: str):
+        """Create the ticket channel after questionnaire completion"""
         
         # Get the ticket category from environment or use default
         try:
@@ -71,7 +135,18 @@ class TicketPanel(View):
         if not sanitized_name:
             sanitized_name = str(user.id)
         
-        ticket_name = f'request-mm-{sanitized_name}'
+        # Determine ticket name based on category
+        if category == "0-150m":
+            ticket_name = f'{sanitized_name}-mm150'
+        elif category == "150m-500m":
+            ticket_name = f'{sanitized_name}-mm500'
+        elif category == "500m-1b":
+            ticket_name = f'{sanitized_name}-mm1b'
+        elif category == "drag-og":
+            ticket_name = f'{sanitized_name}-owneronly'
+        else:
+            ticket_name = f'{sanitized_name}-mm'
+        
         existing_ticket = discord.utils.get(guild.text_channels, name=ticket_name)
         
         if existing_ticket:
@@ -103,13 +178,17 @@ class TicketPanel(View):
             role_ids = [role_id_1, role_id_2]
             role_mentions = ' '.join([f'<@&{role_id}>' for role_id in role_ids])
             
-            # Create welcome embed with category
+            # Create welcome embed with trade information
             welcome_embed = discord.Embed(
                 title=f"Welcome {user.display_name} to Eli's MM and Gambling!",
                 description="A middleman will be with you very shortly.",
                 color=discord.Color.blue()
             )
             welcome_embed.add_field(name="Trade Category", value=f"**{category}**", inline=False)
+            welcome_embed.add_field(name="What is the trade?", value=trade, inline=False)
+            welcome_embed.add_field(name="Your side", value=your_side, inline=True)
+            welcome_embed.add_field(name="Their side", value=their_side, inline=True)
+            welcome_embed.add_field(name="Discord ID", value=discord_id, inline=False)
             welcome_embed.set_footer(text=f"Ticket created for {user.name}")
             
             # Send ping and embed
@@ -256,11 +335,19 @@ class Tickets(commands.Cog):
         except Exception as e:
             await ctx.send(f'❌ Error applying MM ban: {str(e)}')
     
+    def is_ticket_channel(self, channel_name: str) -> bool:
+        """Check if the channel is a ticket channel"""
+        return (channel_name.endswith('-mm150') or 
+                channel_name.endswith('-mm500') or 
+                channel_name.endswith('-mm1b') or 
+                channel_name.endswith('-owneronly') or
+                channel_name.startswith('request-mm-'))  # Keep backward compatibility
+    
     @commands.command(name='close')
     async def close_ticket(self, ctx):
         """Close the current ticket"""
         # Check if this is a ticket channel
-        if not ctx.channel.name.startswith('request-mm-'):
+        if not self.is_ticket_channel(ctx.channel.name):
             await ctx.send('This command can only be used in ticket channels!')
             return
         
@@ -342,7 +429,7 @@ class Tickets(commands.Cog):
     async def add_to_ticket(self, ctx, member: discord.Member = None):
         """Add a user to the current ticket"""
         # Check if this is a ticket channel
-        if not ctx.channel.name.startswith('request-mm-'):
+        if not self.is_ticket_channel(ctx.channel.name):
             await ctx.send('❌ This command can only be used in ticket channels!')
             return
         
