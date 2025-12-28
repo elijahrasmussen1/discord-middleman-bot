@@ -212,10 +212,9 @@ class TicketPanel(View):
                 await interaction.followup.send('Error: Invalid role ID in configuration!', ephemeral=True)
                 return
             
-            # Create professional, eye-catching welcome embed
+            # Create professional, eye-catching welcome embed (inspired by $mmpanel format)
             welcome_embed = discord.Embed(
-                title="━━━━━━━━━━━━━━━━━━━━━━━━━━",
-                color=0x2F3136  # Professional dark gray color
+                color=0x3498db  # Professional blue color matching $mmpanel
             )
             
             # Add server logo prominently as the main image
@@ -223,49 +222,47 @@ class TicketPanel(View):
             if server_logo_url:
                 welcome_embed.set_image(url=server_logo_url)
             
-            # Header with ticket creator and other user (with spoiler tags)
+            # Header with ticket creator and other user (NO spoiler tags in embed)
             if other_user:
-                header_text = f"||{user.mention}|| has made a middleman ticket with ||{other_user.mention}||"
+                header_text = f"> {user.mention} has made a middleman ticket with {other_user.mention}"
             else:
-                header_text = f"||{user.mention}|| has made a middleman ticket with ||<@{discord_id}>||"
+                header_text = f"> {user.mention} has made a middleman ticket with <@{discord_id}>"
             
             welcome_embed.add_field(
-                name="📋 Ticket Information", 
-                value=f"{header_text}\n\u200b",  # Extra line break for spacing
+                name="", 
+                value=header_text,
                 inline=False
             )
             
-            # Display the full trade prominently
+            # Display the full trade prominently with blockquote formatting
             if game:
-                trade_display = f"**Trade:** {trade}\n**Game:** {game}"
+                trade_info = f"> **Trade:** {trade}\n> **Game:** {game}"
             else:
-                trade_display = f"**Trade:** {trade}"
+                trade_info = f"> **Trade:** {trade}"
             
             welcome_embed.add_field(
-                name="💱 Trade Details", 
-                value=f"{trade_display}\n\u200b",
+                name="", 
+                value=trade_info,
                 inline=False
             )
             
-            # Two-column layout for trade sides with better spacing
-            welcome_embed.add_field(
-                name=f"💼 {user.display_name}'s Side",
-                value=f"```\n{your_side}\n```",
-                inline=True
-            )
-            welcome_embed.add_field(
-                name=f"💼 Other User's Side",
-                value=f"```\n{their_side}\n```",
-                inline=True
+            # Trade sides with blockquote formatting
+            trade_sides = (
+                f"> **{user.display_name}'s Side:**\n> {your_side}\n> \n"
+                f"> **Other User's Side:**\n> {their_side}"
             )
             
-            # Add empty field for formatting (keeps two-column layout aligned)
-            welcome_embed.add_field(name="\u200b", value="\u200b", inline=True)
+            welcome_embed.add_field(
+                name="", 
+                value=trade_sides,
+                inline=False
+            )
             
             # Footer message with better formatting
-            welcome_embed.set_footer(
-                text="Welcome to Eli's MM Service! A middleman will be here very soon.",
-                icon_url=server_logo_url if server_logo_url else None
+            welcome_embed.add_field(
+                name="",
+                value="> Welcome to Eli's MM Service! A middleman will be here very soon.",
+                inline=False
             )
             
             # Add timestamp for professionalism
