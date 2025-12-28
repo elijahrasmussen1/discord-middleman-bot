@@ -205,63 +205,80 @@ class TicketPanel(View):
                 overwrites=overwrites
             )
             
-            # Role IDs to ping (from environment or defaults)
+            # Role ID to ping (from environment or default)
             try:
-                role_id_1 = int(os.getenv('MM_ROLE_ID_1', '1442993726057087089'))
-                role_id_2 = int(os.getenv('MM_ROLE_ID_2', '1446603033445142559'))
+                mm_role_id = int(os.getenv('MM_ROLE_ID', '1452247731648200816'))
             except ValueError:
-                await interaction.followup.send('Error: Invalid role IDs in configuration!', ephemeral=True)
+                await interaction.followup.send('Error: Invalid role ID in configuration!', ephemeral=True)
                 return
-                
-            role_ids = [role_id_1, role_id_2]
-            role_mentions = ' '.join([f'<@&{role_id}>' for role_id in role_ids])
             
-            # Create professional welcome embed
+            # Create professional, eye-catching welcome embed
             welcome_embed = discord.Embed(
-                color=discord.Color.blue()
+                title="━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                color=0x2F3136  # Professional dark gray color
             )
             
-            # Header with ticket creator and other user
-            if other_user:
-                header_text = f"{user.mention} has made a middleman ticket with {other_user.mention}"
-            else:
-                header_text = f"{user.mention} has made a middleman ticket with <@{discord_id}>"
-            
-            welcome_embed.add_field(name="", value=f"**{header_text}**", inline=False)
-            
-            # Display the full trade
-            if game:
-                trade_display = f"**{trade}** ({game})"
-            else:
-                trade_display = f"**{trade}**"
-            welcome_embed.add_field(name="", value=trade_display, inline=False)
-            
-            # Two-column layout for trade sides
-            welcome_embed.add_field(
-                name=f"**{user.display_name}'s Side**",
-                value=your_side,
-                inline=True
-            )
-            welcome_embed.add_field(
-                name=f"**Other User's Side**",
-                value=their_side,
-                inline=True
-            )
-            
-            # Add server logo if configured (optional)
+            # Add server logo prominently as the main image
             server_logo_url = os.getenv('SERVER_LOGO_URL', '')
             if server_logo_url:
-                welcome_embed.set_thumbnail(url=server_logo_url)
+                welcome_embed.set_image(url=server_logo_url)
             
-            # Footer message
-            welcome_embed.set_footer(text="Welcome to Eli's MM Service! A middleman will be here very soon.")
-            
-            # Send pings (roles + both users) and embed
-            user_pings = f"{user.mention}"
+            # Header with ticket creator and other user (with spoiler tags)
             if other_user:
-                user_pings += f" {other_user.mention}"
+                header_text = f"||{user.mention}|| has made a middleman ticket with ||{other_user.mention}||"
+            else:
+                header_text = f"||{user.mention}|| has made a middleman ticket with ||<@{discord_id}>||"
             
-            ping_message = f"{role_mentions} {user_pings}"
+            welcome_embed.add_field(
+                name="📋 Ticket Information", 
+                value=f"{header_text}\n\u200b",  # Extra line break for spacing
+                inline=False
+            )
+            
+            # Display the full trade prominently
+            if game:
+                trade_display = f"**Trade:** {trade}\n**Game:** {game}"
+            else:
+                trade_display = f"**Trade:** {trade}"
+            
+            welcome_embed.add_field(
+                name="💱 Trade Details", 
+                value=f"{trade_display}\n\u200b",
+                inline=False
+            )
+            
+            # Two-column layout for trade sides with better spacing
+            welcome_embed.add_field(
+                name=f"💼 {user.display_name}'s Side",
+                value=f"```\n{your_side}\n```",
+                inline=True
+            )
+            welcome_embed.add_field(
+                name=f"💼 Other User's Side",
+                value=f"```\n{their_side}\n```",
+                inline=True
+            )
+            
+            # Add empty field for formatting (keeps two-column layout aligned)
+            welcome_embed.add_field(name="\u200b", value="\u200b", inline=True)
+            
+            # Footer message with better formatting
+            welcome_embed.set_footer(
+                text="Welcome to Eli's MM Service! A middleman will be here very soon.",
+                icon_url=server_logo_url if server_logo_url else None
+            )
+            
+            # Add timestamp for professionalism
+            welcome_embed.timestamp = discord.utils.utcnow()
+            
+            # Send pings (role + both users) and embed
+            user_pings = f"||{user.mention}||"
+            if other_user:
+                user_pings += f" ||{other_user.mention}||"
+            else:
+                user_pings += f" ||<@{discord_id}>||"
+            
+            ping_message = f"<@&{mm_role_id}> {user_pings}"
             await ticket_channel.send(ping_message)
             await ticket_channel.send(embed=welcome_embed)
             
