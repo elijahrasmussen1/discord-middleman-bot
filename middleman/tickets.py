@@ -214,13 +214,13 @@ class TicketPanel(View):
             
             # Create professional, eye-catching welcome embed (inspired by $mmpanel format)
             welcome_embed = discord.Embed(
+                title="🎫 Middleman Trade Ticket",
                 color=0x3498db  # Professional blue color matching $mmpanel
             )
             
-            # Add server logo prominently as the main image
-            server_logo_url = os.getenv('SERVER_LOGO_URL', '')
-            if server_logo_url:
-                welcome_embed.set_image(url=server_logo_url)
+            # Add server logo using the same method as $mmban command
+            if guild.icon:
+                welcome_embed.set_thumbnail(url=guild.icon.url)
             
             # Header with ticket creator and other user (NO spoiler tags in embed)
             if other_user:
@@ -265,8 +265,9 @@ class TicketPanel(View):
                 inline=False
             )
             
-            # Add timestamp for professionalism
+            # Add timestamp and footer for professionalism
             welcome_embed.timestamp = discord.utils.utcnow()
+            welcome_embed.set_footer(text="Eli's MM Service")
             
             # Send pings (role + both users) and embed
             user_pings = f"||{user.mention}||"
