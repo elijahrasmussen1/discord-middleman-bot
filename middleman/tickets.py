@@ -12,6 +12,16 @@ class TradeQuestionnaire(Modal):
         super().__init__(title=f"Trade Information - {category}")
         self.category = category
         
+        # For MM2/JB/ETC category, use different questions
+        if category == "mm2-jb-etc":
+            self.game = TextInput(
+                label="What is the game?",
+                placeholder="E.g., MM2, Jailbreak, etc.",
+                required=True,
+                max_length=100
+            )
+            self.add_item(self.game)
+        
         self.trade = TextInput(
             label="What is the trade?",
             placeholder="E.g., Garama (SAB) for Apple Pay",
@@ -20,21 +30,21 @@ class TradeQuestionnaire(Modal):
         )
         
         self.your_side = TextInput(
-            label="What is your side?",
+            label="What is your side" + (" of the trade?" if category == "mm2-jb-etc" else "?"),
             placeholder="E.g., Garama (SAB) or $50 Apple Pay",
             required=True,
             max_length=200
         )
         
         self.their_side = TextInput(
-            label="What is their side?",
+            label="What is their side" + (" of the trade?" if category == "mm2-jb-etc" else "?"),
             placeholder="E.g., $50 Apple Pay or Garama (SAB)",
             required=True,
             max_length=200
         )
         
         self.discord_id = TextInput(
-            label="Discord ID? (required)",
+            label="What is their discord ID? (required)" if category == "mm2-jb-etc" else "Discord ID? (required)",
             placeholder="Enter the other user's Discord ID",
             required=True,
             max_length=20
@@ -48,6 +58,11 @@ class TradeQuestionnaire(Modal):
     async def on_submit(self, interaction: discord.Interaction):
         """Handle questionnaire submission"""
         # Store the responses on the modal instance
+        if self.category == "mm2-jb-etc":
+            self.game_value = self.game.value
+        else:
+            self.game_value = None
+        
         self.trade_value = self.trade.value
         self.your_side_value = self.your_side.value
         self.their_side_value = self.their_side.value
@@ -70,7 +85,8 @@ class TicketPanel(View):
             discord.SelectOption(label="0-150m", value="0-150m"),
             discord.SelectOption(label="150m-500m", value="150m-500m"),
             discord.SelectOption(label="500m-1b", value="500m-1b"),
-            discord.SelectOption(label="Drag / OG", value="drag-og")
+            discord.SelectOption(label="Drag / OG", value="drag-og"),
+            discord.SelectOption(label="MM2, JB, ETC", value="mm2-jb-etc")
         ]
     )
     async def category_select(self, interaction: discord.Interaction, select: Select):
@@ -105,13 +121,14 @@ class TicketPanel(View):
             user, 
             guild, 
             selected_category,
+            modal.game_value if hasattr(modal, 'game_value') else None,
             modal.trade_value,
             modal.your_side_value,
             modal.their_side_value,
             modal.discord_id_value
         )
     
-    async def create_ticket(self, interaction: discord.Interaction, user: discord.Member, guild: discord.Guild, category: str, trade: str, your_side: str, their_side: str, discord_id: str):
+    async def create_ticket(self, interaction: discord.Interaction, user: discord.Member, guild: discord.Guild, category: str, game: str, trade: str, your_side: str, their_side: str, discord_id: str):
         """Create the ticket channel after questionnaire completion"""
         
         # Get the ticket category from environment or use default
@@ -136,7 +153,9 @@ class TicketPanel(View):
             sanitized_name = str(user.id)
         
         # Determine ticket name based on category
-        if category == "0-150m":
+        if category == "mm2-jb-etc":
+            ticket_name = f'request-mm-{sanitized_name}'
+        elif category == "0-150m":
             ticket_name = f'{sanitized_name}-mm150'
         elif category == "150m-500m":
             ticket_name = f'{sanitized_name}-mm500'
@@ -185,9 +204,14 @@ class TicketPanel(View):
                 color=discord.Color.blue()
             )
             welcome_embed.add_field(name="Trade Category", value=f"**{category}**", inline=False)
+            
+            # Add game field for MM2/JB/ETC category
+            if category == "mm2-jb-etc" and game:
+                welcome_embed.add_field(name="What is the game?", value=game, inline=False)
+            
             welcome_embed.add_field(name="What is the trade?", value=trade, inline=False)
-            welcome_embed.add_field(name="Your side", value=your_side, inline=True)
-            welcome_embed.add_field(name="Their side", value=their_side, inline=True)
+            welcome_embed.add_field(name="Your side" + (" of the trade" if category == "mm2-jb-etc" else ""), value=your_side, inline=True)
+            welcome_embed.add_field(name="Their side" + (" of the trade" if category == "mm2-jb-etc" else ""), value=their_side, inline=True)
             welcome_embed.add_field(name="Discord ID", value=discord_id, inline=False)
             welcome_embed.set_footer(text=f"Ticket created for {user.name}")
             
@@ -222,7 +246,7 @@ class Tickets(commands.Cog):
     async def setup_ticket_panel(self, ctx):
         """Setup the ticket panel with category selection"""
         embed = discord.Embed(
-            title="# Eli's MM & Gambling",
+            title="**Eli's MM Service**",
             description=(
                 "To request a middleman from this server,\n"
                 "select a category from the dropdown below.\n"
@@ -234,10 +258,10 @@ class Tickets(commands.Cog):
             name="",
             value=(
                 "> **How does a Middleman Work?**\n"
-                "> Example: Trade is Harvester (MM2) for Robux.\n"
-                "> 1. Seller gives Harvester to middleman.\n"
-                "> 2. Buyer pays seller robux (after middleman confirms receiving MM2).\n"
-                "> 3. Middleman gives buyer Harvester (after seller received robux)."
+                "> Example: Trade is Brulee (JB) For Cashapp\n"
+                "> 1. Seller gives Brulee to middleman.\n"
+                "> 2. Buyer sends money to seller (after middleman receives items)\n"
+                "> 3. Middleman gives Brulee to buyer (after seller confirms payment)"
             ),
             inline=False
         )
@@ -246,7 +270,7 @@ class Tickets(commands.Cog):
             name="",
             value=(
                 "> **Important**\n"
-                "> • Troll tickets are not allowed. Once the trade is completed you must vouch your middleman in their respective servers.\n"
+                "> • Fake tickets are not allowed. Once the trade is completed you must vouch your middleman.\n"
                 "> • If you have trouble getting a user's ID **[click here to find a users ID](https://discord.com/channels/1442270020959867162/1454757054471475210)**.\n"
                 "> • Make sure to read the rules before making a ticket."
             ),
