@@ -17,10 +17,10 @@ class CategorySelect(View):
         min_values=1,
         max_values=1,
         options=[
-            discord.SelectOption(label="0-150m", value="0-150m", emoji="💰"),
-            discord.SelectOption(label="150m-500m", value="150m-500m", emoji="💎"),
-            discord.SelectOption(label="500m-1b", value="500m-1b", emoji="👑"),
-            discord.SelectOption(label="Drag / OG", value="drag-og", emoji="🔥")
+            discord.SelectOption(label="0-150m", value="0-150m"),
+            discord.SelectOption(label="150m-500m", value="150m-500m"),
+            discord.SelectOption(label="500m-1b", value="500m-1b"),
+            discord.SelectOption(label="Drag / OG", value="drag-og")
         ]
     )
     async def category_select(self, interaction: discord.Interaction, select: Select):
