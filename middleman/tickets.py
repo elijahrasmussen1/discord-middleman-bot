@@ -222,30 +222,33 @@ class Tickets(commands.Cog):
     async def setup_ticket_panel(self, ctx):
         """Setup the ticket panel with category selection"""
         embed = discord.Embed(
-            title="**Eli's MM Service**",
+            title="# Eli's MM & Gambling",
             description=(
-                "To request a middleman from this server\n"
-                "select a category to begin.\n"
+                "To request a middleman from this server,\n"
+                "select a category from the dropdown below.\n"
             ),
             color=discord.Color.blue()
         )
         
         embed.add_field(
-            name="How does a Middleman Work?",
+            name="",
             value=(
-                "**Ex.** Trade is Garama (SAB) for Apple Pay\n"
-                "• Seller gives Garama to the middleman.\n"
-                "• Buyer pays seller on Apple pay only after middleman confirms receiving the SAB pet.\n"
-                "• Middleman gives buyer Garama after seller confirms payment"
+                "> **How does a Middleman Work?**\n"
+                "> Example: Trade is Harvester (MM2) for Robux.\n"
+                "> 1. Seller gives Harvester to middleman.\n"
+                "> 2. Buyer pays seller robux (after middleman confirms receiving MM2).\n"
+                "> 3. Middleman gives buyer Harvester (after seller received robux)."
             ),
             inline=False
         )
         
         embed.add_field(
-            name="**READ ME!!**",
+            name="",
             value=(
-                "• Fake tickets are not tolerated. Making a fake ticket or not vouching your middleman after your trade will land you the MM Banned role.\n"
-                "• You must get a users ID before the trade **[click here for the tutorial](https://discord.com/channels/1442270020959867162/1454757054471475210)**"
+                "> **Important**\n"
+                "> • Troll tickets are not allowed. Once the trade is completed you must vouch your middleman in their respective servers.\n"
+                "> • If you have trouble getting a user's ID **[click here for tutorial](https://youtube.com/shorts/pMG8CuIADDs?feature=shared)**.\n"
+                "> • Make sure to read the rules before making a ticket."
             ),
             inline=False
         )
