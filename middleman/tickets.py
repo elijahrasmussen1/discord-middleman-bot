@@ -122,13 +122,31 @@ class Tickets(commands.Cog):
     async def setup_ticket_panel(self, ctx):
         """Setup the ticket panel with button"""
         embed = discord.Embed(
-            title="🎫 Middleman Services",
-            description="Click the button below to request a middleman for your trade.",
-            color=discord.Color.green()
+            title="**Eli's MM Service**",
+            description=(
+                "To request a middleman from this server\n"
+                "click the Request Middleman button below.\n"
+            ),
+            color=discord.Color.blue()
         )
+        
         embed.add_field(
-            name="How it works:",
-            value="1. Click 'Request MM' button\n2. A private ticket will be created\n3. A middleman will assist you shortly",
+            name="How does a Middleman Work?",
+            value=(
+                "**Ex.** Trade is Garama (SAB) for Apple Pay\n"
+                "• Seller gives Garama to the middleman.\n"
+                "• Buyer pays seller on Apple pay only after middleman confirms receiving the SAB pet.\n"
+                "• Middleman gives buyer Garama after seller confirms payment"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="**READ ME!!**",
+            value=(
+                "• Fake tickets are not tolerated. Making a fake ticket or not vouching your middleman after your trade will land you the MM Banned role.\n"
+                "• You must get a users ID before the trade **[click here for the tutorial](https://discord.com/channels/1442270020959867162/1454757054471475210)**"
+            ),
             inline=False
         )
         
