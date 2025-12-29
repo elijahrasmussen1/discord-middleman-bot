@@ -146,6 +146,7 @@ class TicketPanel(View):
         
         # Try to get the other user from Discord ID
         other_user = None
+        discord_id_valid = False
         try:
             other_user_id = int(discord_id.strip())
             other_user = guild.get_member(other_user_id)
@@ -153,11 +154,23 @@ class TicketPanel(View):
                 # Try to fetch if not in cache
                 try:
                     other_user = await guild.fetch_member(other_user_id)
+                    discord_id_valid = True
                 except:
-                    pass
+                    # Could not find user with this ID
+                    discord_id_valid = False
+            else:
+                discord_id_valid = True
         except ValueError:
             # Invalid Discord ID format
-            pass
+            discord_id_valid = False
+        
+        # If Discord ID is invalid, send error message and return
+        if not discord_id_valid:
+            await interaction.followup.send(
+                '**Please provide the other users full username or Discord ID.**',
+                ephemeral=True
+            )
+            return
         
         # Sanitize username for channel name (remove invalid characters)
         # Remove non-alphanumeric chars, replace with single hyphen, strip leading/trailing hyphens
@@ -214,7 +227,7 @@ class TicketPanel(View):
             
             # Create professional, eye-catching welcome embed (inspired by $mmpanel format)
             welcome_embed = discord.Embed(
-                title="🎫 Middleman Trade Ticket",
+                title="**Eli's MM Service**",
                 color=0x3498db  # Professional blue color matching $mmpanel
             )
             
@@ -279,6 +292,16 @@ class TicketPanel(View):
             ping_message = f"<@&{mm_role_id}> {user_pings}"
             await ticket_channel.send(ping_message)
             await ticket_channel.send(embed=welcome_embed)
+            
+            # Send follow-up questionnaire to the ticket creator
+            questionnaire_message = (
+                "Welcome! Thank you for serving my service. Answer the questions below to begin.\n\n"
+                "1. what is your roblox username?\n"
+                "3. are you able to join PS links? (13+)\n"
+                "4. Do you understand that you will be MM Banned from this server if you fail to vouch? (Y/N)\n\n"
+                "**Please answer these questions as soon as possible**"
+            )
+            await ticket_channel.send(questionnaire_message)
             
             await interaction.followup.send(f'Ticket created: {ticket_channel.mention}', ephemeral=True)
             
