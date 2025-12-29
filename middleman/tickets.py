@@ -5,14 +5,16 @@ from discord import app_commands
 import asyncio
 import os
 import re
+from .mm_database import MMDatabase
 
 class TicketActionsView(View):
     """View with Claim and Close buttons for MM staff"""
-    def __init__(self, mm_role_id: int, ticket_channel_id: int = None):
+    def __init__(self, mm_role_id: int, ticket_channel_id: int = None, db: MMDatabase = None):
         super().__init__(timeout=None)
         self.mm_role_id = mm_role_id
         self.ticket_channel_id = ticket_channel_id
         self.claimed_by = None
+        self.db = db if db else MMDatabase()
     
     @discord.ui.button(label="Claim", style=discord.ButtonStyle.green, custom_id="persistent_ticket_claim")
     async def claim_button(self, interaction: discord.Interaction, button: Button):
@@ -39,7 +41,41 @@ class TicketActionsView(View):
         button.style = discord.ButtonStyle.gray
         
         await interaction.response.edit_message(view=self)
-        await interaction.channel.send(f"✅ {interaction.user.mention} has claimed this ticket.")
+        
+        # Get MM profile data
+        profile = self.db.get_profile(interaction.user.id)
+        rank = profile.get("rank", "Middleman")
+        completed_tickets = profile.get("completed_tickets", 0)
+        
+        # Create professional MM profile embed
+        mm_embed = discord.Embed(
+            title="• MM Profile •",
+            color=0x3498db  # Professional blue
+        )
+        
+        # Add profile information with clean formatting
+        profile_info = (
+            f"**Username:** {interaction.user.mention} ({interaction.user.name})\n"
+            f"**User ID:** {interaction.user.id}\n"
+            f"**Rank:** {rank}\n"
+            f"**Completed tickets:** {completed_tickets}"
+        )
+        
+        mm_embed.add_field(name="", value=profile_info, inline=False)
+        
+        # Set the middleman's profile picture/gif on the right
+        if interaction.user.avatar:
+            mm_embed.set_thumbnail(url=interaction.user.avatar.url)
+        
+        # Add timestamp for professionalism
+        mm_embed.timestamp = discord.utils.utcnow()
+        mm_embed.set_footer(text="Eli's MM Service")
+        
+        # Send the profile message
+        await interaction.channel.send(
+            f"{interaction.user.mention} will be assisting your trade.",
+            embed=mm_embed
+        )
     
     @discord.ui.button(label="Close", style=discord.ButtonStyle.red, custom_id="persistent_ticket_close")
     async def close_button(self, interaction: discord.Interaction, button: Button):
@@ -53,8 +89,15 @@ class TicketActionsView(View):
             )
             return
         
+        # If this ticket was claimed by an MM, increment their completed tickets
+        if self.claimed_by and self.claimed_by == interaction.user:
+            self.db.increment_tickets(interaction.user.id)
+            close_message = f"🔒 Ticket is being closed by {interaction.user.mention}... (+1 completed ticket)"
+        else:
+            close_message = f"🔒 Ticket is being closed by {interaction.user.mention}..."
+        
         await interaction.response.send_message(
-            f"🔒 Ticket is being closed by {interaction.user.mention}...",
+            close_message,
             ephemeral=False
         )
         
@@ -129,8 +172,9 @@ class TradeQuestionnaire(Modal):
 
 
 class TicketPanel(View):
-    def __init__(self):
+    def __init__(self, db: MMDatabase = None):
         super().__init__(timeout=None)
+        self.db = db if db else MMDatabase()
     
     @discord.ui.select(
         placeholder="Select a category to begin",
@@ -349,7 +393,7 @@ class TicketPanel(View):
             await ticket_channel.send(ping_message)
             
             # Create the view with Claim and Close buttons
-            actions_view = TicketActionsView(mm_role_id)
+            actions_view = TicketActionsView(mm_role_id, db=self.db)
             await ticket_channel.send(embed=welcome_embed, view=actions_view)
             
             # Wait 30 seconds before sending follow-up questionnaire
@@ -374,14 +418,15 @@ class TicketPanel(View):
 class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.db = MMDatabase()
     
     async def cog_load(self):
         """Add the persistent views when the cog loads"""
-        self.bot.add_view(TicketPanel())
+        self.bot.add_view(TicketPanel(db=self.db))
         # Add persistent view for ticket actions (with default MM role ID)
         try:
             mm_role_id = int(os.getenv('MM_ROLE_ID', '1452247731648200816'))
-            self.bot.add_view(TicketActionsView(mm_role_id))
+            self.bot.add_view(TicketActionsView(mm_role_id, db=self.db))
         except ValueError:
             print("Warning: Invalid MM_ROLE_ID in configuration")
     
@@ -651,6 +696,54 @@ class Tickets(commands.Cog):
             return
         
         await ctx.send(f'{member.id}')
+    
+    @commands.command(name='setrank')
+    @commands.has_permissions(administrator=True)
+    async def set_rank(self, ctx, member: discord.Member = None, *, rank: str = None):
+        """Set a middleman's rank (Admin only)"""
+        if member is None or rank is None:
+            await ctx.send('❌ Usage: `$setrank @user <rank name>`')
+            return
+        
+        # Set the rank in the database
+        self.db.set_rank(member.id, rank)
+        
+        # Send confirmation embed
+        embed = discord.Embed(
+            title="✅ Rank Updated",
+            description=f"{member.mention}'s rank has been set to **{rank}**",
+            color=0x00ff00  # Green
+        )
+        embed.set_footer(text=f"Updated by {ctx.author.name}")
+        embed.timestamp = discord.utils.utcnow()
+        
+        await ctx.send(embed=embed)
+    
+    @commands.command(name='changetickets')
+    @commands.has_permissions(administrator=True)
+    async def change_tickets(self, ctx, member: discord.Member = None, amount: int = None):
+        """Change a middleman's completed ticket count (Admin only)"""
+        if member is None or amount is None:
+            await ctx.send('❌ Usage: `$changetickets @user <amount>`')
+            return
+        
+        if amount < 0:
+            await ctx.send('❌ Amount must be a non-negative number.')
+            return
+        
+        # Set the completed tickets in the database
+        self.db.set_completed_tickets(member.id, amount)
+        
+        # Send confirmation embed
+        embed = discord.Embed(
+            title="✅ Tickets Updated",
+            description=f"{member.mention}'s completed tickets has been set to **{amount}**",
+            color=0x00ff00  # Green
+        )
+        embed.set_footer(text=f"Updated by {ctx.author.name}")
+        embed.timestamp = discord.utils.utcnow()
+        
+        await ctx.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(Tickets(bot))
