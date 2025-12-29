@@ -6,6 +6,62 @@ import asyncio
 import os
 import re
 
+class TicketActionsView(View):
+    """View with Claim and Close buttons for MM staff"""
+    def __init__(self, mm_role_id: int, ticket_channel_id: int = None):
+        super().__init__(timeout=None)
+        self.mm_role_id = mm_role_id
+        self.ticket_channel_id = ticket_channel_id
+        self.claimed_by = None
+    
+    @discord.ui.button(label="Claim", style=discord.ButtonStyle.green, custom_id="persistent_ticket_claim")
+    async def claim_button(self, interaction: discord.Interaction, button: Button):
+        """Claim the ticket"""
+        # Check if user has the MM role
+        mm_role = interaction.guild.get_role(self.mm_role_id)
+        if not mm_role or mm_role not in interaction.user.roles:
+            await interaction.response.send_message(
+                "❌ You don't have permission to claim tickets.",
+                ephemeral=True
+            )
+            return
+        
+        if self.claimed_by:
+            await interaction.response.send_message(
+                f"⚠️ This ticket has already been claimed by {self.claimed_by.mention}",
+                ephemeral=True
+            )
+            return
+        
+        self.claimed_by = interaction.user
+        button.disabled = True
+        button.label = f"Claimed by {interaction.user.display_name}"
+        button.style = discord.ButtonStyle.gray
+        
+        await interaction.response.edit_message(view=self)
+        await interaction.channel.send(f"✅ {interaction.user.mention} has claimed this ticket.")
+    
+    @discord.ui.button(label="Close", style=discord.ButtonStyle.red, custom_id="persistent_ticket_close")
+    async def close_button(self, interaction: discord.Interaction, button: Button):
+        """Close the ticket"""
+        # Check if user has the MM role
+        mm_role = interaction.guild.get_role(self.mm_role_id)
+        if not mm_role or mm_role not in interaction.user.roles:
+            await interaction.response.send_message(
+                "❌ You don't have permission to close tickets.",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.send_message(
+            f"🔒 Ticket is being closed by {interaction.user.mention}...",
+            ephemeral=False
+        )
+        
+        # Wait a moment then delete the channel
+        await asyncio.sleep(3)
+        await interaction.channel.delete(reason=f"Ticket closed by {interaction.user}")
+
 class TradeQuestionnaire(Modal):
     """Modal for collecting trade information"""
     def __init__(self, category: str):
@@ -291,7 +347,13 @@ class TicketPanel(View):
             
             ping_message = f"<@&{mm_role_id}> {user_pings}"
             await ticket_channel.send(ping_message)
-            await ticket_channel.send(embed=welcome_embed)
+            
+            # Create the view with Claim and Close buttons
+            actions_view = TicketActionsView(mm_role_id)
+            await ticket_channel.send(embed=welcome_embed, view=actions_view)
+            
+            # Wait 30 seconds before sending follow-up questionnaire
+            await asyncio.sleep(30)
             
             # Send follow-up questionnaire to the ticket creator
             questionnaire_message = (
@@ -314,8 +376,14 @@ class Tickets(commands.Cog):
         self.bot = bot
     
     async def cog_load(self):
-        """Add the persistent view when the cog loads"""
+        """Add the persistent views when the cog loads"""
         self.bot.add_view(TicketPanel())
+        # Add persistent view for ticket actions (with default MM role ID)
+        try:
+            mm_role_id = int(os.getenv('MM_ROLE_ID', '1452247731648200816'))
+            self.bot.add_view(TicketActionsView(mm_role_id))
+        except ValueError:
+            print("Warning: Invalid MM_ROLE_ID in configuration")
     
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
