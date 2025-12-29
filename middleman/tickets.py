@@ -744,6 +744,86 @@ class Tickets(commands.Cog):
         embed.timestamp = discord.utils.utcnow()
         
         await ctx.send(embed=embed)
+    
+    @commands.command(name='proof')
+    async def proof(self, ctx, *, args: str = None):
+        """Submit middleman proof with trade info and extra details
+        
+        Usage: $proof <trade>, <extra info>
+        Example: $proof Garama for $20 Cashapp, Player let me take garama first then got paid by buyer.
+        
+        Attach up to 2 videos/images with the command.
+        """
+        if args is None:
+            await ctx.send('❌ Usage: `$proof <trade>, <extra info>`\nExample: `$proof Garama for $20 Cashapp, Player let me take garama first`')
+            return
+        
+        # Split by comma to get trade and extra info
+        parts = args.split(',', 1)
+        if len(parts) < 2:
+            await ctx.send('❌ Please use a comma (`,`) to separate the trade from extra info.\nExample: `$proof Garama for $20 Cashapp, Player let me take garama first`')
+            return
+        
+        trade = parts[0].strip()
+        extra_info = parts[1].strip()
+        
+        # Check for attachments
+        if not ctx.message.attachments:
+            await ctx.send('❌ Please attach at least one video or image as proof.')
+            return
+        
+        if len(ctx.message.attachments) > 2:
+            await ctx.send('⚠️ Note: Only the first 2 attachments will be displayed.')
+        
+        # Create professional proof embed
+        embed = discord.Embed(
+            title="__**• Middleman Proof •**__",
+            description=f"Proof submitted by {ctx.author.mention}",
+            color=0x3498db  # Blue
+        )
+        
+        # Add trade information
+        embed.add_field(
+            name="**Full Trade:**",
+            value=trade,
+            inline=False
+        )
+        
+        # Add extra info from MM
+        embed.add_field(
+            name="**Extra info from MM:**",
+            value=f'"{extra_info}"',
+            inline=False
+        )
+        
+        # Add timestamp and footer
+        embed.timestamp = discord.utils.utcnow()
+        embed.set_footer(text="Eli's MM Service")
+        
+        # Set thumbnail to user's avatar
+        if ctx.guild and ctx.guild.icon:
+            embed.set_thumbnail(url=ctx.guild.icon.url)
+        
+        # Send embed
+        await ctx.send(embed=embed)
+        
+        # Send attachments (up to 2)
+        for i, attachment in enumerate(ctx.message.attachments[:2]):
+            attachment_embed = discord.Embed(color=0x3498db)
+            
+            # Check if it's an image or video
+            if attachment.content_type and attachment.content_type.startswith('image'):
+                attachment_embed.set_image(url=attachment.url)
+                attachment_embed.set_footer(text=f"Proof {i+1} of {min(len(ctx.message.attachments), 2)}")
+            elif attachment.content_type and attachment.content_type.startswith('video'):
+                attachment_embed.description = f"**Video {i+1}:** [Click here to view]({attachment.url})"
+                attachment_embed.set_footer(text=f"Proof {i+1} of {min(len(ctx.message.attachments), 2)}")
+            else:
+                # For other file types, just show the link
+                attachment_embed.description = f"**Attachment {i+1}:** [Click here to view]({attachment.url})"
+                attachment_embed.set_footer(text=f"Proof {i+1} of {min(len(ctx.message.attachments), 2)}")
+            
+            await ctx.send(embed=attachment_embed)
 
 async def setup(bot):
     await bot.add_cog(Tickets(bot))

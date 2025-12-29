@@ -71,6 +71,7 @@ async def assist(ctx):
             "`$close` - Close current ticket (ticket channels only)\n"
             "`$add [user]` - Add a user to the current ticket\n"
             "`$findid @user` - Get a user's Discord ID\n"
+            "`$proof <trade>, <info>` - Submit proof with videos (attach files)\n"
             "**Select Category Menu** - Choose a category to create a ticket"
         ),
         inline=False
