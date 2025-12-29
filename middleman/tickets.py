@@ -295,10 +295,10 @@ class TicketPanel(View):
             
             # Send follow-up questionnaire to the ticket creator
             questionnaire_message = (
-                "Welcome! Thank you for serving my service. Answer the questions below to begin.\n\n"
+                "Welcome! Thank you for choosing Eli's MM Service. Answer the questions below to begin.\n\n"
                 "1. what is your roblox username?\n"
-                "3. are you able to join PS links? (13+)\n"
-                "4. Do you understand that you will be MM Banned from this server if you fail to vouch? (Y/N)\n\n"
+                "2. are you able to join PS links? (13+)\n"
+                "3. Do you understand that you will be MM Banned from this server if you fail to vouch? (Y/N)\n\n"
                 "**Please answer these questions as soon as possible**"
             )
             await ticket_channel.send(questionnaire_message)
