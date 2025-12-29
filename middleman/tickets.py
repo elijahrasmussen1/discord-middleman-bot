@@ -574,6 +574,15 @@ class Tickets(commands.Cog):
             await ctx.send('❌ Error: I don\'t have permission to modify channel permissions.')
         except Exception as e:
             await ctx.send(f'❌ Error adding user to ticket: {str(e)}')
+    
+    @commands.command(name='findid')
+    async def find_user_id(self, ctx, member: discord.Member = None):
+        """Get a user's Discord ID"""
+        if member is None:
+            await ctx.send('❌ Please mention a user. Usage: `$findid @user`')
+            return
+        
+        await ctx.send(f'{member.id}')
 
 async def setup(bot):
     await bot.add_cog(Tickets(bot))
