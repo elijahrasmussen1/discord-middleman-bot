@@ -699,12 +699,8 @@ class Tickets(commands.Cog):
     
     @commands.command(name='setrank')
     @commands.has_permissions(administrator=True)
-    async def set_rank(self, ctx, member: discord.Member = None, *, rank: str = None):
-        """Set a middleman's rank (Admin only)"""
-        if member is None or rank is None:
-            await ctx.send('❌ Usage: `$setrank @user <rank name>`')
-            return
-        
+    async def set_rank(self, ctx, member: discord.Member, *, rank: str):
+        """Set a middleman's rank - supports any text with spaces (Admin only)"""
         # Set the rank in the database
         self.db.set_rank(member.id, rank)
         
@@ -719,14 +715,20 @@ class Tickets(commands.Cog):
         
         await ctx.send(embed=embed)
     
+    @set_rank.error
+    async def set_rank_error(self, ctx, error):
+        """Error handler for setrank command"""
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send('❌ Usage: `$setrank @user <rank name>`\nExample: `$setrank @User Custom Rank Name`')
+        elif isinstance(error, commands.MemberNotFound):
+            await ctx.send('❌ User not found. Please mention a valid server member.')
+        elif isinstance(error, commands.MissingPermissions):
+            await ctx.send('❌ You need Administrator permission to use this command.')
+    
     @commands.command(name='changetickets')
     @commands.has_permissions(administrator=True)
-    async def change_tickets(self, ctx, member: discord.Member = None, amount: int = None):
+    async def change_tickets(self, ctx, member: discord.Member, amount: int):
         """Change a middleman's completed ticket count (Admin only)"""
-        if member is None or amount is None:
-            await ctx.send('❌ Usage: `$changetickets @user <amount>`')
-            return
-        
         if amount < 0:
             await ctx.send('❌ Amount must be a non-negative number.')
             return
@@ -737,13 +739,25 @@ class Tickets(commands.Cog):
         # Send confirmation embed
         embed = discord.Embed(
             title="✅ Tickets Updated",
-            description=f"{member.mention}'s completed tickets has been set to **{amount}**",
+            description=f"{member.mention}'s completed tickets have been set to **{amount}**",
             color=0x00ff00  # Green
         )
         embed.set_footer(text=f"Updated by {ctx.author.name}")
         embed.timestamp = discord.utils.utcnow()
         
         await ctx.send(embed=embed)
+    
+    @change_tickets.error
+    async def change_tickets_error(self, ctx, error):
+        """Error handler for changetickets command"""
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send('❌ Usage: `$changetickets @user <amount>`\nExample: `$changetickets @User 50`')
+        elif isinstance(error, commands.MemberNotFound):
+            await ctx.send('❌ User not found. Please mention a valid server member.')
+        elif isinstance(error, commands.BadArgument):
+            await ctx.send('❌ Amount must be a valid number.')
+        elif isinstance(error, commands.MissingPermissions):
+            await ctx.send('❌ You need Administrator permission to use this command.')
     
     @commands.command(name='proof')
     async def proof(self, ctx, *, args: str = None):
