@@ -830,31 +830,47 @@ class Tickets(commands.Cog):
         
         await ctx.send(embed=embed)
         
-        # Send attachments (up to 2) - videos will be sent as files for Discord's native player
-        for i, attachment in enumerate(ctx.message.attachments[:2]):
-            # Check if it's an image or video
-            if attachment.content_type and attachment.content_type.startswith('image'):
-                # Images are already in the main embed or as separate embeds
-                if attachment != first_image:
-                    img_embed = discord.Embed(color=0x3498db)
-                    img_embed.set_image(url=attachment.url)
-                    img_embed.set_footer(text=f"Proof {i+1} of {min(len(ctx.message.attachments), 2)}")
-                    await ctx.send(embed=img_embed)
-            elif attachment.content_type and attachment.content_type.startswith('video'):
-                # Send videos as direct URLs so Discord shows its native video player
-                footer_embed = discord.Embed(
-                    description=f"**Video {i+1}:**",
-                    color=0x3498db
-                )
-                footer_embed.set_footer(text=f"Proof {i+1} of {min(len(ctx.message.attachments), 2)}")
-                await ctx.send(embed=footer_embed)
-                await ctx.send(attachment.url)
+        # Collect all attachments by type
+        video_urls = []
+        image_attachments = []
+        other_attachments = []
+        
+        for attachment in ctx.message.attachments[:2]:
+            if attachment.content_type:
+                if attachment.content_type.startswith('video'):
+                    video_urls.append(attachment.url)
+                elif attachment.content_type.startswith('image') and attachment != first_image:
+                    image_attachments.append(attachment)
+                else:
+                    other_attachments.append(attachment)
             else:
-                # For other file types, show as link
-                other_embed = discord.Embed(color=0x3498db)
-                other_embed.description = f"**Attachment {i+1}:** [Click here to view]({attachment.url})"
-                other_embed.set_footer(text=f"Proof {i+1} of {min(len(ctx.message.attachments), 2)}")
-                await ctx.send(embed=other_embed)
+                other_attachments.append(attachment)
+        
+        # Send all videos in a single message (if any)
+        if video_urls:
+            video_count = len(video_urls)
+            video_label = "Videos" if video_count > 1 else "Video"
+            video_embed = discord.Embed(
+                description=f"**{video_label} ({video_count}):**",
+                color=0x3498db
+            )
+            video_embed.set_footer(text=f"Proof videos - {video_count} of {min(len(ctx.message.attachments), 2)}")
+            await ctx.send(embed=video_embed)
+            # Send all video URLs together so Discord renders them all
+            await ctx.send("\n".join(video_urls))
+        
+        # Send any additional images (not the first one already in main embed)
+        for i, img_attachment in enumerate(image_attachments):
+            img_embed = discord.Embed(color=0x3498db)
+            img_embed.set_image(url=img_attachment.url)
+            img_embed.set_footer(text=f"Proof image {i+2}")
+            await ctx.send(embed=img_embed)
+        
+        # Send any other file types as links
+        for i, other_attachment in enumerate(other_attachments):
+            other_embed = discord.Embed(color=0x3498db)
+            other_embed.description = f"**Attachment {i+1}:** [Click here to view]({other_attachment.url})"
+            await ctx.send(embed=other_embed)
 
 async def setup(bot):
     await bot.add_cog(Tickets(bot))
