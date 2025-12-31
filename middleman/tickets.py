@@ -818,26 +818,43 @@ class Tickets(commands.Cog):
         if ctx.guild and ctx.guild.icon:
             embed.set_thumbnail(url=ctx.guild.icon.url)
         
-        # Send embed
+        # Send the main embed with the first image attachment if available
+        first_image = None
+        for attachment in ctx.message.attachments[:2]:
+            if attachment.content_type and attachment.content_type.startswith('image'):
+                first_image = attachment
+                break
+        
+        if first_image:
+            embed.set_image(url=first_image.url)
+        
         await ctx.send(embed=embed)
         
-        # Send attachments (up to 2)
+        # Send attachments (up to 2) - videos will be sent as files for Discord's native player
         for i, attachment in enumerate(ctx.message.attachments[:2]):
-            attachment_embed = discord.Embed(color=0x3498db)
-            
             # Check if it's an image or video
             if attachment.content_type and attachment.content_type.startswith('image'):
-                attachment_embed.set_image(url=attachment.url)
-                attachment_embed.set_footer(text=f"Proof {i+1} of {min(len(ctx.message.attachments), 2)}")
+                # Images are already in the main embed or as separate embeds
+                if attachment != first_image:
+                    img_embed = discord.Embed(color=0x3498db)
+                    img_embed.set_image(url=attachment.url)
+                    img_embed.set_footer(text=f"Proof {i+1} of {min(len(ctx.message.attachments), 2)}")
+                    await ctx.send(embed=img_embed)
             elif attachment.content_type and attachment.content_type.startswith('video'):
-                attachment_embed.description = f"**Video {i+1}:** [Click here to view]({attachment.url})"
-                attachment_embed.set_footer(text=f"Proof {i+1} of {min(len(ctx.message.attachments), 2)}")
+                # Send videos as direct URLs so Discord shows its native video player
+                footer_embed = discord.Embed(
+                    description=f"**Video {i+1}:**",
+                    color=0x3498db
+                )
+                footer_embed.set_footer(text=f"Proof {i+1} of {min(len(ctx.message.attachments), 2)}")
+                await ctx.send(embed=footer_embed)
+                await ctx.send(attachment.url)
             else:
-                # For other file types, just show the link
-                attachment_embed.description = f"**Attachment {i+1}:** [Click here to view]({attachment.url})"
-                attachment_embed.set_footer(text=f"Proof {i+1} of {min(len(ctx.message.attachments), 2)}")
-            
-            await ctx.send(embed=attachment_embed)
+                # For other file types, show as link
+                other_embed = discord.Embed(color=0x3498db)
+                other_embed.description = f"**Attachment {i+1}:** [Click here to view]({attachment.url})"
+                other_embed.set_footer(text=f"Proof {i+1} of {min(len(ctx.message.attachments), 2)}")
+                await ctx.send(embed=other_embed)
 
 async def setup(bot):
     await bot.add_cog(Tickets(bot))
