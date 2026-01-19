@@ -182,7 +182,13 @@ class TicketPanel(View):
         max_values=1,
         custom_id='ticket_category_select',
         options=[
-            discord.SelectOption(label="0-150m", value="0-150m"),
+            discord.SelectOption(
+                label="SAB", 
+                value="sab"
+                # Note: To add the custom emoji, upload the image at:
+                # https://cdn.discordapp.com/attachments/1449665675479220234/1462806704499589211/Screenshot_Capture_-_2026-01-19_-_05-50-48-removebg-preview.png
+                # to your Discord server as a custom emoji named "sab", then use: emoji="<:sab:EMOJI_ID>"
+            ),
             discord.SelectOption(label="150m-500m", value="150m-500m"),
             discord.SelectOption(label="500m-1b", value="500m-1b"),
             discord.SelectOption(label="Drag / OG", value="drag-og"),
@@ -283,7 +289,7 @@ class TicketPanel(View):
         # Determine ticket name based on category
         if category == "mm2-jb-etc":
             ticket_name = f'request-mm-{sanitized_name}'
-        elif category == "0-150m":
+        elif category == "sab":
             ticket_name = f'{sanitized_name}-mm150'
         elif category == "150m-500m":
             ticket_name = f'{sanitized_name}-mm500'
