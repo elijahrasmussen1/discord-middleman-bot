@@ -185,7 +185,7 @@ class TicketPanel(View):
             discord.SelectOption(
                 label="SAB", 
                 value="sab",
-                emoji="<:sab:1462812023133044797>"
+                emoji=discord.PartialEmoji(name="sab", id=1462812023133044797)
             ),
             discord.SelectOption(label="150m-500m", value="150m-500m"),
             discord.SelectOption(label="500m-1b", value="500m-1b"),
