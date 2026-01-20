@@ -187,7 +187,11 @@ class TicketPanel(View):
                 value="sab",
                 emoji=discord.PartialEmoji(name="sab", id=1462812023133044797)
             ),
-            discord.SelectOption(label="150m-500m", value="150m-500m"),
+            discord.SelectOption(
+                label="Adopt Me!", 
+                value="150m-500m",
+                emoji=discord.PartialEmoji(name="adopt", id=1463040094331207710)
+            ),
             discord.SelectOption(label="500m-1b", value="500m-1b"),
             discord.SelectOption(label="Drag / OG", value="drag-og"),
             discord.SelectOption(label="MM2, JB, ETC", value="mm2-jb-etc")
