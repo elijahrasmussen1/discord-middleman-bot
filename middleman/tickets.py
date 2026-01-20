@@ -192,9 +192,26 @@ class TicketPanel(View):
                 value="150m-500m",
                 emoji=discord.PartialEmoji(name="adopt", id=1463040094331207710)
             ),
-            discord.SelectOption(label="500m-1b", value="500m-1b"),
-            discord.SelectOption(label="Drag / OG", value="drag-og"),
-            discord.SelectOption(label="MM2, JB, ETC", value="mm2-jb-etc")
+            discord.SelectOption(
+                label="MM2", 
+                value="500m-1b",
+                emoji=discord.PartialEmoji(name="mm2", id=1463042366083563583)
+            ),
+            discord.SelectOption(
+                label="Jailbreak", 
+                value="drag-og",
+                emoji=discord.PartialEmoji(name="jb", id=1463044275335069860)
+            ),
+            discord.SelectOption(
+                label="PS99", 
+                value="mm2-jb-etc",
+                emoji=discord.PartialEmoji(name="ps99", id=1463044588926275729)
+            ),
+            discord.SelectOption(
+                label="Other", 
+                value="other",
+                emoji=discord.PartialEmoji(name="other", id=1463044926811017226)
+            )
         ]
     )
     async def category_select(self, interaction: discord.Interaction, select: Select):
@@ -299,6 +316,8 @@ class TicketPanel(View):
             ticket_name = f'{sanitized_name}-mm1b'
         elif category == "drag-og":
             ticket_name = f'{sanitized_name}-owneronly'
+        elif category == "other":
+            ticket_name = f'other-{sanitized_name}'
         else:
             ticket_name = f'{sanitized_name}-mm'
         
